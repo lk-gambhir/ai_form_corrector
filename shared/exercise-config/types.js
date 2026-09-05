@@ -57,6 +57,9 @@
  * @property {Record<string, number[]>} series  per-angle time series over the rep
  * @property {number} [kneeOverAnkleX]  knee-x minus ankle-x at bottom (signed, normalized)
  * @property {number} [torsoLeanMax]    max torso lean (deg from vertical) in the rep
+ * @property {number} [bottomMs]     (added Week 3) timestamp of the rep's minimum-angle frame
+ * @property {number} [minAngleDeg]  (added Week 3) minimum driving-angle value reached in the rep
+ * @property {number} [peakAngleDeg] (added Week 3) max driving-angle value observed in the rep window
  */
 
 /**
@@ -83,14 +86,46 @@
  */
 
 /**
+ * (Added Week 3) A bilateral angle group: the rep-counting signal is a
+ * single logical value (e.g. "knee"), but the raw skeleton gives two
+ * candidate readings (left/right leg). CompositeAngleDef says how to
+ * collapse `from` (AngleDef ids) into one number per frame: average the
+ * ids that are visible-enough this frame, or fall back to whichever one
+ * is visible if only one is — mirrors ExerciseVerifier's per-leg approach.
+ * If none of `from` are visible-enough, the composite value is unusable
+ * (NaN) for that frame.
+ * @typedef {Object} CompositeAngleDef
+ * @property {string} id  the logical signal id consumed by states/repCycle (e.g. "knee")
+ * @property {string[]} from  AngleDef ids (must exist in drivingAngles) to average/fallback between
+ */
+
+/**
+ * (Added Week 3) Named, documented hysteresis thresholds driving the
+ * STANDING/DESCENDING/BOTTOM/ASCENDING rep cycle for a single composite
+ * signal. Kept as a separate explicit block (rather than only encoded via
+ * each StateDef's EnterCondition) because the squat rep FSM's transition
+ * rules are directional (e.g. "bounce back to STANDING without reaching
+ * BOTTOM doesn't count as a rep") and easier to express with one shared
+ * down/up pair than four independent EnterConditions. Week 7 will make
+ * these per-user-relative instead of fixed degrees.
+ * @typedef {Object} RepCycleThresholds
+ * @property {string} signal  the CompositeAngleDef/AngleDef id this FSM watches (e.g. "knee")
+ * @property {number} downThresholdDeg  must drop below this to be considered BOTTOM
+ * @property {number} upThresholdDeg    must rise above this to return to STANDING (upThresholdDeg > downThresholdDeg — the gap is the hysteresis dead-zone)
+ * @property {number} minFrames  consecutive frames a transition's condition must hold before it commits (anti-oscillation debounce)
+ */
+
+/**
  * @typedef {Object} ExerciseConfig
  * @property {"squat"|"deadlift"|"bench"} id
  * @property {string} displayName
  * @property {boolean} enabled   only squat is true in V1
  * @property {AngleDef[]} drivingAngles
+ * @property {CompositeAngleDef[]} [compositeAngles]  (added Week 3) bilateral left/right collapse defs
  * @property {{dominantMotion:"hip_knee"|"elbow_shoulder", minAmplitudeDeg:number}} verification
  * @property {StateDef[]} states
  * @property {string[]} repCycle
+ * @property {RepCycleThresholds} [repCycleThresholds]  (added Week 3) the thresholds SquatStateMachine actually reads
  * @property {RuleDef[]} rules
  * @property {{minSec:number, maxSec:number}} tempoBounds
  * @property {Record<RuleId, number>} scoreWeights  sums to 1.0
