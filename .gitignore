@@ -13,6 +13,13 @@ frontend/dist/
 # data & secrets
 data/*.db
 data/*.db-journal
+# raw source videos are ignored by default, EXCEPT the two clips that produced
+# the committed fixtures — kept so a clone can re-run tools/extract_landmarks.py
+# (rejected/experimental clips stay ignored; see data/videos/SOURCES.md).
+data/videos/*
+!data/videos/SOURCES.md
+!data/videos/squat-demo.webm
+!data/videos/half-squat-cdc.webm
 .env
 backend/.env
 
@@ -26,3 +33,7 @@ frontend/public/models/*.task
 
 # python extraction venv (data-prep)
 .venv-extract/
+
+# playwright artifacts
+frontend/test-results/
+frontend/playwright-report/
