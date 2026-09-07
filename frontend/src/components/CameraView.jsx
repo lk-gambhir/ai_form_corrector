@@ -1,9 +1,8 @@
-// Live camera view with MediaPipe pose estimation and 2D knee angle readout.
+// Live camera view integrating MediaPipe pose estimation and analysis pipeline.
 import { useEffect, useRef, useState } from "react";
 import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
-import { jointAngle2D } from "@/pose/angles.js";
-import { POSE_LANDMARKS } from "@shared/exercise-config/landmarks.js";
+import { AnalysisPipeline } from "@/pipeline/AnalysisPipeline.js";
 
 export default function CameraView() {
   const videoRef = useRef(null);
@@ -11,13 +10,15 @@ export default function CameraView() {
   const streamRef = useRef(null);
   const estimatorRef = useRef(null);
   const rafRef = useRef(null);
+  const pipelineRef = useRef(new AnalysisPipeline());
 
   const [state, setState] = useState("requesting");
-  const [kneeAngle, setKneeAngle] = useState(null);
+  const [analysis, setAnalysis] = useState({ repCount: 0, feedback: { activeCue: null } });
 
   useEffect(() => {
     let cancelled = false;
 
+    // Initializes webcam stream and pose estimator model.
     async function start() {
       if (!navigator.mediaDevices?.getUserMedia) {
         setState("no-device");
@@ -29,7 +30,11 @@ export default function CameraView() {
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
       } catch (err) {
         if (cancelled) return;
-        setState("denied");
+        if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          setState("no-device");
+        } else {
+          setState("denied");
+        }
         return;
       }
 
@@ -39,32 +44,39 @@ export default function CameraView() {
       }
 
       streamRef.current = stream;
-      const video = videoRef.current;
-      video.srcObject = stream;
-      await video.play();
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          if (cancelled) return;
+        }
+      }
 
-      let estimator;
       try {
-        estimator = await PoseEstimator.create();
+        const estimator = await PoseEstimator.create();
+        if (cancelled) {
+          estimator.close();
+          return;
+        }
+        estimatorRef.current = estimator;
       } catch (err) {
+        console.error(err);
         if (!cancelled) setState("model-error");
         return;
       }
 
-      if (cancelled) {
-        estimator.close();
-        return;
-      }
-
-      estimatorRef.current = estimator;
+      if (cancelled) return;
       setState("running");
       runLoop();
     }
 
+    // Animation frame loop for continuous frame detection and analysis.
     function runLoop() {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const estimator = estimatorRef.current;
+      const pipeline = pipelineRef.current;
       if (!video || !canvas || !estimator) return;
 
       const ctx = canvas.getContext("2d");
@@ -82,25 +94,27 @@ export default function CameraView() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           drawPose(ctx, landmarks, canvas.width, canvas.height);
 
-          if (landmarks.length > 0) {
-            const hip = landmarks[POSE_LANDMARKS.LEFT_HIP];
-            const knee = landmarks[POSE_LANDMARKS.LEFT_KNEE];
-            const ankle = landmarks[POSE_LANDMARKS.LEFT_ANKLE];
-            const angle = jointAngle2D(hip, knee, ankle);
-            setKneeAngle(Number.isNaN(angle) ? null : angle);
-          } else {
-            setKneeAngle(null);
+          // Process frame through analysis pipeline.
+          const result = pipeline.processFrame(landmarks, performance.now());
+          setAnalysis({ repCount: result.repCount, feedback: result.feedback });
+
+          // Render on-screen HUD text overlays.
+          ctx.font = "24px sans-serif";
+          ctx.fillStyle = "white";
+          ctx.fillText(`Reps: ${result.repCount}`, 20, 40);
+          if (result.feedback.activeCue) {
+            ctx.fillStyle = "yellow";
+            ctx.fillText(result.feedback.activeCue, 20, canvas.height - 40);
           }
         }
-
         rafRef.current = requestAnimationFrame(tick);
       };
-
       rafRef.current = requestAnimationFrame(tick);
     }
 
     start();
 
+    // Clean up streams, animation loop, and estimator on unmount.
     return () => {
       cancelled = true;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -121,15 +135,11 @@ export default function CameraView() {
         <video ref={videoRef} className="camera-video" playsInline muted />
         <canvas ref={canvasRef} className="camera-overlay" />
       </div>
-
-      {state !== "running" && (
-        <p className="camera-status">Status: {state}</p>
-      )}
-
+      <div className="camera-status" data-testid="camera-status">Status: {state}</div>
       {state === "running" && (
-        <p className="knee-angle-readout">
-          Left knee angle: {kneeAngle === null ? "—" : `${kneeAngle.toFixed(1)}°`}
-        </p>
+        <div className="knee-angle-readout" data-testid="knee-angle-readout">
+          Reps: {analysis.repCount}
+        </div>
       )}
     </div>
   );
