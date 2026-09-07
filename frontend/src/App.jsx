@@ -1,19 +1,41 @@
-import CameraView from "@/components/CameraView.jsx";
+// Root application router with authentication gating and modular page views.
+import { useState } from "react";
+import { AuthProvider, useAuth } from "@/context/AuthContext.jsx";
+import LoginPage from "@/pages/LoginPage.jsx";
+import WorkoutPage from "@/pages/WorkoutPage.jsx";
+import CalibrationPage from "@/pages/CalibrationPage.jsx";
+import DashboardPage from "@/pages/DashboardPage.jsx";
+import Navbar from "@/components/layout/Navbar.jsx";
+import Footer from "@/components/layout/Footer.jsx";
+
+function AppContent() {
+  const { isAuthenticated } = useAuth();
+  const [activeTab, setActiveTab] = useState("workout");
+
+  // Mandatory Google OAuth Login Gate.
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return (
+    <div className="app-shell" data-testid="app-shell">
+      <Navbar activeTab={activeTab} onSelectTab={setActiveTab} />
+      <main className="app-main-content">
+        {activeTab === "workout" && <WorkoutPage />}
+        {activeTab === "calibration" && <CalibrationPage />}
+        {activeTab === "dashboard" && <DashboardPage />}
+      </main>
+      <Footer />
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <div className="app-root" data-testid="app-root">
-      <header className="app-header">
-        <h1>Squat Form Analyzer</h1>
-        <p className="disclaimer" data-testid="disclaimer">
-          Not a medical device. For general fitness feedback only — not a
-          substitute for professional coaching or medical advice.
-        </p>
-      </header>
-
-      <main>
-        <CameraView />
-      </main>
-    </div>
+    <AuthProvider>
+      <div className="app-root" data-testid="app-root">
+        <AppContent />
+      </div>
+    </AuthProvider>
   );
 }

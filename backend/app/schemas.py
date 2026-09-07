@@ -82,6 +82,13 @@ class RegisterResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class GoogleAuthRequest(BaseModel):
+    token: str = "google-oauth-token"
+    email: EmailStr
+    name: str | None = None
+    picture: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Sessions
 # ---------------------------------------------------------------------------
