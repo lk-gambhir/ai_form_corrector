@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+frontend/node_modules/
+.venv/
+backend/.venv/
+__pycache__/
+*.pyc
+
+# build output
+frontend/dist/
+*.egg-info/
+
+# data & secrets
+data/*.db
+data/*.db-journal
+.env
+backend/.env
+
+# large model asset
+frontend/public/models/*.task
+
+# editor / os
+.DS_Store
+.vscode/
+.idea/
