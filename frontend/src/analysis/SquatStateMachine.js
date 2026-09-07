@@ -28,7 +28,13 @@ export class SquatStateMachine {
     this._byId = new Map(config.drivingAngles.map((def) => [def.id, def]));
     this._composites = config.compositeAngles ?? [];
 
-    this.state = config.states?.[0]?.name ?? "STANDING";
+    const cycle = config.repCycle || ["STANDING", "DESCENDING", "BOTTOM", "ASCENDING"];
+    this._startState = cycle[0];
+    this._motionState = cycle[1];
+    this._inflectionState = cycle[2];
+    this._returnState = cycle[3];
+
+    this.state = config.states?.[0]?.name ?? this._startState;
     this.repCount = 0;
 
     this._pendingTarget = null;
@@ -106,7 +112,7 @@ export class SquatStateMachine {
     }
 
     // Track frame samples into active rep.
-    if (this.state !== "STANDING") {
+    if (this.state !== this._startState) {
       this._curSeries.push({ t: timestampMs, angle });
       if (angle < this._curMin) {
         this._curMin = angle;
@@ -140,7 +146,7 @@ export class SquatStateMachine {
     this._pendingCount = 0;
     this._transitionLog.push({ fromState, toState: target, timestampMs, kneeAngle: angle });
 
-    if (target === "DESCENDING") {
+    if (target === this._motionState) {
       this._curStartMs = timestampMs;
       this._curMin = angle;
       this._curMinMs = timestampMs;
@@ -148,8 +154,8 @@ export class SquatStateMachine {
       return;
     }
 
-    if (target === "STANDING") {
-      if (fromState === "ASCENDING") {
+    if (target === this._startState) {
+      if (fromState === this._returnState) {
         this.repCount += 1;
         const seriesValues = this._curSeries.map((s) => s.angle);
         this._reps.push({
@@ -176,9 +182,19 @@ export class SquatStateMachine {
     return this._reps.slice();
   }
 
+  // Updates rep detection thresholds dynamically from calibrated baseline ROM.
+  updateThresholds({ downThresholdDeg, upThresholdDeg }) {
+    if (typeof downThresholdDeg === "number" && !Number.isNaN(downThresholdDeg)) {
+      this._down = downThresholdDeg;
+    }
+    if (typeof upThresholdDeg === "number" && !Number.isNaN(upThresholdDeg)) {
+      this._up = upThresholdDeg;
+    }
+  }
+
   // Resets the state machine to initial standing state.
   reset() {
-    this.state = this.config.states?.[0]?.name ?? "STANDING";
+    this.state = this.config.states?.[0]?.name ?? this._startState;
     this.repCount = 0;
     this._pendingTarget = null;
     this._pendingCount = 0;
@@ -187,3 +203,5 @@ export class SquatStateMachine {
     this._resetInProgressRep();
   }
 }
+
+export const ExerciseStateMachine = SquatStateMachine;

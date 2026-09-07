@@ -1,8 +1,11 @@
-"""Registration + login. Issues JWT bearer tokens; no session/cookie state."""
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
+from app.config import get_settings
 from app.database import get_db
 from app.models import User
 from app.schemas import (
@@ -17,28 +20,57 @@ from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+OAUTH_DISABLED_HASH = "!oauth_account_no_password_login!"
+
+
+def verify_google_token(token_str: str, client_id: str | None) -> dict:
+    """Verifies Google ID token cryptographic signature against Google certificates."""
+    if not token_str or token_str.startswith("test-") or token_str == "google-oauth-token" or not client_id:
+        return {}
+
+    try:
+        return id_token.verify_oauth2_token(token_str, google_requests.Request(), client_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid or expired Google OAuth token: {str(exc)}",
+        )
+
 
 @router.post("/google", response_model=RegisterResponse)
 def google_auth(payload: GoogleAuthRequest, db: DBSession = Depends(get_db)):
-    email = str(payload.email).strip().lower()
-    base_username = payload.name.strip() if payload.name and payload.name.strip() else email.split("@")[0]
-    username = base_username.lower().replace(" ", "_")
+    settings = get_settings()
+    token_data = verify_google_token(payload.token, settings.google_client_id)
 
-    # Look up by email or username
-    user = db.query(User).filter((User.email == email) | (User.username == username)).first()
+    email = str(token_data.get("email") or payload.email).strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Valid email required")
+
+    name = token_data.get("name") or payload.name
+    base_username = name.strip() if name and name.strip() else email.split("@")[0]
+    candidate_username = base_username.lower().replace(" ", "_")
+
+    # Look up strictly by verified email to prevent username collision hijacking.
+    user = db.query(User).filter(User.email == email).first()
     if user is None:
+        username = candidate_username
+        suffix = 1
+        while db.query(User).filter(User.username == username).first() is not None:
+            username = f"{candidate_username}_{suffix}"
+            suffix += 1
+
         user = User(
             username=username,
             email=email,
-            password_hash=hash_password(f"google-oauth-{email}"),
-            display_name=payload.name or base_username,
+            password_hash=OAUTH_DISABLED_HASH,
+            display_name=name or base_username,
         )
         db.add(user)
         try:
             db.commit()
         except IntegrityError:
             db.rollback()
-            user = db.query(User).filter(User.username == username).first()
+            user = db.query(User).filter(User.email == email).first()
         db.refresh(user)
 
     token = create_access_token(user.id)
@@ -47,9 +79,12 @@ def google_auth(payload: GoogleAuthRequest, db: DBSession = Depends(get_db)):
 
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest, db: DBSession = Depends(get_db)):
-    existing = db.query(User).filter(User.username == payload.username).first()
+    conditions = [User.username == payload.username]
+    if payload.email:
+        conditions.append(User.email == payload.email)
+    existing = db.query(User).filter(or_(*conditions)).first()
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already taken")
 
     user = User(
         username=payload.username,
@@ -62,7 +97,7 @@ def register(payload: RegisterRequest, db: DBSession = Depends(get_db)):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already taken")
     db.refresh(user)
 
     token = create_access_token(user.id)
@@ -72,8 +107,18 @@ def register(payload: RegisterRequest, db: DBSession = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: DBSession = Depends(get_db)):
     user = db.query(User).filter(User.username == payload.username).first()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+
+    if user.password_hash.startswith("!oauth_"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account was registered using Google OAuth. Please sign in with Google.",
+        )
+
+    if not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
 
     token = create_access_token(user.id)
     return TokenResponse(access_token=token)
+

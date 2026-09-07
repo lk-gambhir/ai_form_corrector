@@ -6,6 +6,7 @@ import { AwardIcon, ActivityIcon, CheckIcon, AlertCircleIcon } from "./ui/Icons.
 export default function SessionSummaryModal({ summary, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [isSaveError, setIsSaveError] = useState(false);
 
   if (!summary) return null;
   const score = Math.round(summary.formScore || 0);
@@ -13,12 +14,14 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
   async function handleSave() {
     setSaving(true);
     setSaveStatus(null);
+    setIsSaveError(false);
     try {
       await saveSession(summary);
       setSaveStatus("Session saved to profile!");
       if (onSaved) onSaved();
     } catch (err) {
-      setSaveStatus(`Saved locally (${err.message || "backend offline"})`);
+      setIsSaveError(true);
+      setSaveStatus(`Save failed: ${err.message || "Failed to save session"}`);
     } finally {
       setSaving(false);
     }
@@ -93,7 +96,14 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
           </div>
         )}
 
-        {saveStatus && <p className="save-status" data-testid="save-status">{saveStatus}</p>}
+        {saveStatus && (
+          <p
+            className={`save-status ${isSaveError ? "status-error" : "status-success"}`}
+            data-testid="save-status"
+          >
+            {saveStatus}
+          </p>
+        )}
 
         <div className="modal-actions">
           <button

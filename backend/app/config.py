@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # CORS: only the Vite dev origin by default.
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # Google OAuth client ID for token signature verification.
+    google_client_id: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

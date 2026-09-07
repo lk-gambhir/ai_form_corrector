@@ -4,6 +4,8 @@ import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
 import { AnalysisPipeline } from "@/pipeline/AnalysisPipeline.js";
 import { squatConfig } from "@shared/exercise-config/squat.config.js";
+import { calculateFormScore } from "@/analysis/FormRuleEngine.js";
+import { getBaseline } from "@/api/calibrationApi.js";
 import { PlayIcon, StopIcon, AlertCircleIcon, SparklesIcon } from "./ui/Icons.jsx";
 import SessionSummaryModal from "./SessionSummaryModal.jsx";
 
@@ -21,6 +23,7 @@ export default function CameraView() {
   const [workoutStartTime, setWorkoutStartTime] = useState(null);
   const [sessionSummary, setSessionSummary] = useState(null);
   const [collectedIssues, setCollectedIssues] = useState([]);
+  const [baseline, setBaseline] = useState(null);
 
   // Starts recording a squat set.
   function handleStartSet() {
@@ -39,9 +42,29 @@ export default function CameraView() {
     const reps = pipelineRef.current.machine.getReps();
     const repCount = reps.length;
 
-    // Calculate score based on rep count and detected flaws.
-    const penalty = Math.min(60, collectedIssues.length * 15);
-    const formScore = repCount > 0 ? Math.max(40, 100 - penalty) : 100;
+    // Evaluate all completed reps against form rules for an accurate, consistent issue record.
+    const allIssues = [];
+    reps.forEach((rep, idx) => {
+      const repNum = idx + 1;
+      const ruleResults = pipelineRef.current.ruleEngine.evaluate(rep);
+      ruleResults.filter((r) => !r.pass).forEach((r) => {
+        allIssues.push({
+          repNumber: repNum,
+          issueType: r.ruleId,
+          severity: r.severity || "medium",
+        });
+      });
+    });
+
+    // Merge any live-detected issues not already captured
+    for (const issue of collectedIssues) {
+      if (!allIssues.some((i) => i.repNumber === issue.repNumber && i.issueType === issue.issueType)) {
+        allIssues.push(issue);
+      }
+    }
+
+    // Compute standard form score aligned with backend app.services.form_score.
+    const formScore = calculateFormScore(reps, allIssues, squatConfig.scoreWeights);
 
     const summary = {
       exercise: "squat",
@@ -57,7 +80,7 @@ export default function CameraView() {
         tempo: (r.endMs - r.startMs) / 1000,
         angleMetrics: { minAngle: r.minAngleDeg || 0, peakAngle: r.peakAngleDeg || 0 },
       })),
-      formIssues: collectedIssues,
+      formIssues: allIssues,
     };
 
     setSessionSummary(summary);
@@ -66,8 +89,18 @@ export default function CameraView() {
   useEffect(() => {
     let cancelled = false;
 
-    // Initializes webcam stream and pose estimator model.
+    // Initializes webcam stream, pose estimator model, and calibrated baseline ROM.
     async function start() {
+      // Load user baseline ROM if already calibrated
+      getBaseline()
+        .then((b) => {
+          if (!cancelled && b) {
+            pipelineRef.current.setBaseline(b);
+            setBaseline(b);
+          }
+        })
+        .catch(() => {});
+
       if (!navigator.mediaDevices?.getUserMedia) {
         setState("no-device");
         return;
@@ -147,14 +180,8 @@ export default function CameraView() {
           setAnalysis({ repCount: result.repCount, feedback: result.feedback });
 
           // Track form issues during active set.
-          if (result.feedback.activeCue) {
-            setCollectedIssues((prev) => {
-              const last = prev[prev.length - 1];
-              if (!last || last.issueType !== result.feedback.activeCue) {
-                return [...prev, { repNumber: result.repCount || 1, issueType: result.feedback.activeCue, severity: result.feedback.severity || "medium" }];
-              }
-              return prev;
-            });
+          if (result.newIssues?.length) {
+            setCollectedIssues((prev) => [...prev, ...result.newIssues]);
           }
 
           // Render on-screen HUD text overlays.
@@ -207,6 +234,11 @@ export default function CameraView() {
             <span data-testid="camera-status">Status: {state}</span>
           </div>
 
+          <div className="status-pill" data-testid="baseline-status-pill">
+            <span className="pulse-dot" style={{ background: baseline ? "#10B981" : "#6B7280" }} />
+            <span>{baseline?.rom?.kneeBottom ? `Baseline: Depth < ${Math.min(90, Math.round(baseline.rom.kneeBottom + 5))}°` : "Baseline: Standard (90°)"}</span>
+          </div>
+
           {state === "running" && (
             <div className="rep-counter-pill" data-testid="knee-angle-readout">
               <span className="rep-count-number">{analysis.repCount}</span>
@@ -252,7 +284,6 @@ export default function CameraView() {
         <SessionSummaryModal
           summary={sessionSummary}
           onClose={() => setSessionSummary(null)}
-          onSaved={() => setSessionSummary(null)}
         />
       )}
     </div>

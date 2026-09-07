@@ -40,7 +40,12 @@ export const squatConfig = {
     torso_lean: { enabled: true, maxAngleDeg: 20, cue: "Keep torso more upright" },
   },
   tempoBounds: { minSec: 0.5, maxSec: 12 },
-  scoreWeights: { depth: 0.6, torso_lean: 0.4 },
+  scoreWeights: {
+    depth: 0.35,
+    knee_valgus: 0.25,
+    torso_lean: 0.25,
+    tempo: 0.15,
+  },
   visibilityThreshold: 0.5,
 };
 
