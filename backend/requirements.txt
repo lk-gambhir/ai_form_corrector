@@ -1,0 +1,20 @@
+# Pinned for reproducibility. Python 3.11+ (developed/tested on 3.13).
+#
+# bcrypt/passlib pitfall (documented for the journal): passlib's bcrypt
+# backend probes `bcrypt.__about__.__version__`, which was REMOVED in
+# bcrypt>=4.1, causing passlib to throw
+# `AttributeError: module 'bcrypt' has no attribute '__about__'` at import/hash
+# time (a known passlib 1.7.4 x bcrypt 4.1+ incompatibility). We avoid the
+# whole class of bug by calling the `bcrypt` package directly (no passlib) and
+# pinning bcrypt==4.0.1, the last release that still exposes `__about__`.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+SQLAlchemy==2.0.36
+pydantic==2.10.4
+email-validator==2.2.0
+pydantic-settings==2.7.1
+python-jose[cryptography]==3.3.0
+bcrypt==4.0.1
+python-multipart==0.0.20
+httpx==0.28.1
+pytest==8.3.4
