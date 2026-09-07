@@ -1,14 +1,17 @@
 // Squat exercise configuration.
 
+// Driving joint angles for squat analysis.
 const drivingAngles = [
   { id: "knee_left", points: ["LEFT_HIP", "LEFT_KNEE", "LEFT_ANKLE"], plane: "2d" },
   { id: "knee_right", points: ["RIGHT_HIP", "RIGHT_KNEE", "RIGHT_ANKLE"], plane: "2d" },
 ];
 
+// Composite bilateral angle averaging both knees or falling back to the visible leg.
 const compositeAngles = [
   { id: "knee", from: ["knee_left", "knee_right"] },
 ];
 
+// State definitions for rep cycle.
 const states = [
   { name: "STANDING", enterWhen: { signal: "knee", op: ">", value: 155, hysteresis: 7.5, minFrames: 3 } },
   { name: "DESCENDING", enterWhen: { signal: "knee", op: "<", value: 155, hysteresis: 7.5, minFrames: 3 } },
@@ -32,9 +35,12 @@ export const squatConfig = {
     upThresholdDeg: 155,
     minFrames: 3,
   },
-  rules: [],
+  rules: {
+    depth: { enabled: true, minAngleDeg: 90, cue: "Squat deeper - hips below knees" },
+    torso_lean: { enabled: true, maxAngleDeg: 20, cue: "Keep torso more upright" },
+  },
   tempoBounds: { minSec: 0.5, maxSec: 12 },
-  scoreWeights: {},
+  scoreWeights: { depth: 0.6, torso_lean: 0.4 },
   visibilityThreshold: 0.5,
 };
 
