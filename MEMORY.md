@@ -1,5 +1,0 @@
-- [Week 4 Implementation](memory/week-4-implementation.md) — Implemented FormRuleEngine & MetricsEngine
-- [Week 5 Implementation](memory/week-5-implementation.md) — Integrated pipeline and live feedback (Runnable MVP)
-- [Week 6 Implementation](memory/week-6-implementation.md) — Stabilized test regressions, hardened FrameSource contracts, and verified FastAPI backend
-- [Week 7-8 Implementation](memory/week-7-8-implementation.md) — Google OAuth Gate, Modular Architecture, Real-Data Live Calibration, and Cloud Analytics
-- [Week 9 Implementation](memory/week-9-ai-coaching-rag.md) — AI Coaching RAG Workflow, Biomechanics Knowledge Base, LLM & Deterministic Fallback, and 151 Automated Tests
