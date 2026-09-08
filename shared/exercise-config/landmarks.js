@@ -1,12 +1,4 @@
-/**
- * MediaPipe Pose (BlazePose) 33-landmark index map.
- * We name the ones the squat pipeline uses, plus the total count.
- *
- * NOTE (PRD §22, ARCHITECTURE §31): the `z` coordinate from a single webcam is
- * NOT reliable. Every angle/rule in this project uses 2D (x, y) only. `z` is
- * carried through and stored, but never load-bearing in a decision.
- */
-
+// MediaPipe Pose 33-landmark index map.
 export const POSE_LANDMARKS = {
   NOSE: 0,
   LEFT_SHOULDER: 11,
@@ -23,5 +15,5 @@ export const POSE_LANDMARKS = {
   RIGHT_ANKLE: 28,
 };
 
-/** Total landmarks emitted by the model. */
+// Total landmark count emitted by the pose model.
 export const LANDMARK_COUNT = 33;
