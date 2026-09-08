@@ -1,12 +1,66 @@
-// Post-session summary review and persistence modal with circular score gauge.
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { saveSession } from "@/api/sessionApi.js";
-import { AwardIcon, ActivityIcon, CheckIcon, AlertCircleIcon } from "./ui/Icons.jsx";
+import { getBaseline } from "@/api/calibrationApi.js";
+import { analyzeCoaching, formatCoachingPayload } from "@/api/coachingApi.js";
+import {
+  AwardIcon,
+  ActivityIcon,
+  CheckIcon,
+  AlertCircleIcon,
+  SparklesIcon,
+  TargetIcon,
+  BookOpenIcon,
+  ChevronDownIcon,
+} from "./ui/Icons.jsx";
 
 export default function SessionSummaryModal({ summary, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [isSaveError, setIsSaveError] = useState(false);
+
+  // AI Coaching RAG state
+  const [coaching, setCoaching] = useState(null);
+  const [loadingCoaching, setLoadingCoaching] = useState(false);
+  const [coachingError, setCoachingError] = useState(null);
+  const [showSources, setShowSources] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function fetchCoachingBreakdown() {
+      if (!summary) return;
+      setLoadingCoaching(true);
+      setCoachingError(null);
+
+      try {
+        let baseline = null;
+        try {
+          const res = await getBaseline();
+          if (res && res.limb_ratios) baseline = res;
+        } catch (_) {}
+
+        const payload = formatCoachingPayload(summary, baseline);
+        const coachingResult = await analyzeCoaching(payload);
+        if (active) {
+          setCoaching(coachingResult);
+        }
+      } catch (err) {
+        if (active) {
+          setCoachingError(err.message || "Failed to load AI coaching analysis");
+        }
+      } finally {
+        if (active) {
+          setLoadingCoaching(false);
+        }
+      }
+    }
+
+    fetchCoachingBreakdown();
+
+    return () => {
+      active = false;
+    };
+  }, [summary]);
 
   if (!summary) return null;
   const score = Math.round(summary.formScore || 0);
@@ -79,7 +133,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
 
         {summary.formIssues?.length > 0 ? (
           <div className="summary-feedback-section">
-            <span className="section-title">Coaching Cues</span>
+            <span className="section-title">Detected Kinematic Cues</span>
             <ul className="feedback-chip-list">
               {summary.formIssues.map((issue, idx) => (
                 <li key={idx} className={`feedback-chip severity-${issue.severity}`}>
@@ -92,9 +146,132 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
         ) : (
           <div className="feedback-clean-card">
             <CheckIcon size={16} />
-            <span>Flawless set! Depth and posture met every target.</span>
+            <span>Flawless set! Depth and posture met every kinematic target.</span>
           </div>
         )}
+
+        {/* AI Coaching RAG Breakdown Section */}
+        <div className="ai-coaching-section" data-testid="ai-coaching-section">
+          <div className="ai-coaching-header">
+            <div className="ai-coaching-title-wrap">
+              <div className="ai-badge-icon">
+                <SparklesIcon size={18} />
+              </div>
+              <div>
+                <h3 className="ai-coaching-title">AI Biomechanics Coach</h3>
+                <span className="ai-coaching-sub">Evidence-grounded personalized analysis</span>
+              </div>
+            </div>
+            {coaching?.primary_issue && (
+              <span className="primary-issue-chip" data-testid="coaching-primary-issue">
+                Focus: {coaching.primary_issue.replace("_", " ")}
+              </span>
+            )}
+            {coaching?.source && (
+              <span className={`source-badge ${coaching.source}`} data-testid="coaching-source-badge">
+                {coaching.source === "llm" ? `${coaching.model || "LLM"}` : "Deterministic Analysis"}
+              </span>
+            )}
+          </div>
+
+          {loadingCoaching && (
+            <div className="ai-coaching-loading" data-testid="ai-coaching-loading">
+              <div className="spinner" />
+              <span>Retrieving approved biomechanics guidance & synthesizing personalized cues...</span>
+            </div>
+          )}
+
+          {coachingError && (
+            <div className="ai-coaching-error" data-testid="ai-coaching-error">
+              <AlertCircleIcon size={16} />
+              <span>{coachingError}</span>
+            </div>
+          )}
+
+          {coaching && !loadingCoaching && (
+            <div className="ai-coaching-content" data-testid="ai-coaching-content">
+              {/* Summary & Biomechanical Explanation */}
+              <div className="coaching-explanation-card">
+                <p className="coaching-summary-text" data-testid="coaching-summary">{coaching.summary}</p>
+                <p className="coaching-detail-text" data-testid="coaching-explanation">{coaching.explanation}</p>
+              </div>
+
+              {/* Actionable Corrective Drills */}
+              {coaching.recommendations?.length > 0 && (
+                <div className="coaching-recs-block">
+                  <span className="block-label">Actionable Corrective Drills</span>
+                  <ul className="coaching-recs-list" data-testid="coaching-recommendations">
+                    {coaching.recommendations.map((rec, idx) => (
+                      <li key={idx} className="coaching-rec-item">
+                        <div className="rec-bullet-icon">
+                          <CheckIcon size={14} />
+                        </div>
+                        <span className="rec-text">{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Next Session Goal */}
+              {coaching.next_session_goal && (
+                <div className="coaching-goal-card" data-testid="coaching-goal">
+                  <div className="goal-icon">
+                    <TargetIcon size={18} />
+                  </div>
+                  <div className="goal-info">
+                    <span className="goal-label">Next Session Target</span>
+                    <strong className="goal-text">{coaching.next_session_goal}</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Retrieved Evidence Passages Accordion */}
+              {coaching.retrieved_guidance?.length > 0 && (
+                <div className="coaching-evidence-accordion">
+                  <button
+                    type="button"
+                    className="btn-toggle-evidence"
+                    onClick={() => setShowSources(!showSources)}
+                    data-testid="btn-toggle-sources"
+                  >
+                    <BookOpenIcon size={15} />
+                    <span>Approved Guidance References ({coaching.retrieved_guidance.length})</span>
+                    <ChevronDownIcon
+                      size={15}
+                      className={`chevron-icon ${showSources ? "open" : ""}`}
+                    />
+                  </button>
+
+                  {showSources && (
+                    <div className="evidence-passages-list" data-testid="retrieved-passages-list">
+                      {coaching.retrieved_guidance.map((item, idx) => (
+                        <div key={idx} className="evidence-passage-card">
+                          <div className="evidence-card-header">
+                            <strong className="evidence-title">{item.title}</strong>
+                            <span className="evidence-score-badge">
+                              {Math.round(item.relevance_score * 100)}% match
+                            </span>
+                          </div>
+                          <p className="evidence-body">{item.passage}</p>
+                          <span className="evidence-source-id">Source: {item.source_id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Safety & Medical Disclaimer Note */}
+              {coaching.safety_note && (
+                <div className="coaching-safety-banner" data-testid="coaching-safety">
+                  <AlertCircleIcon size={14} />
+                  <span>{coaching.safety_note}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {saveStatus && (
           <p

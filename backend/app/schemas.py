@@ -42,6 +42,8 @@ Decisions made where types.js was ambiguous for the wire/DB shape:
 """
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
@@ -83,8 +85,8 @@ class RegisterResponse(BaseModel):
 
 
 class GoogleAuthRequest(BaseModel):
-    token: str = "google-oauth-token"
-    email: EmailStr
+    token: str = Field(min_length=20)
+    email: EmailStr | None = None
     name: str | None = None
     picture: str | None = None
 
@@ -124,7 +126,7 @@ class IssueRecordOut(IssueRecordIn):
 
 
 class SessionCreateRequest(BaseModel):
-    exercise: str
+    exercise: Literal["squat"]
     started_at: datetime
     ended_at: datetime
     duration_seconds: float = Field(ge=0)
@@ -216,3 +218,56 @@ class BaselineOut(BaseModel):
     rom: dict
     angle_stats: dict
     calibrated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# AI Coaching (RAG Workflow)
+# ---------------------------------------------------------------------------
+
+class CoachingIssueIn(BaseModel):
+    type: str
+    count: int = Field(default=1, ge=1)
+    severity: str = Field(default="medium")
+
+
+class CoachingMetricsIn(BaseModel):
+    average_rom: float | None = None
+    average_tempo: float | None = None
+    rep_duration: float | None = None
+
+
+class CoachingBaselineIn(BaseModel):
+    knee_bottom_angle: float | None = None
+    typical_torso_lean: float | None = None
+    femur_to_torso: float | None = None
+    shin_to_torso: float | None = None
+    confidence: float | None = None
+
+
+class CoachingAnalyzeRequest(BaseModel):
+    exercise: str = "squat"
+    form_score: float = Field(ge=0, le=100)
+    rep_count: int = Field(ge=0)
+    issues: list[CoachingIssueIn] = Field(default_factory=list)
+    metrics: CoachingMetricsIn = Field(default_factory=CoachingMetricsIn)
+    personalized_baseline: CoachingBaselineIn | None = None
+    user_goal: str | None = None
+
+
+class RetrievedGuidanceItem(BaseModel):
+    source_id: str
+    title: str
+    relevance_score: float
+    passage: str
+
+
+class CoachingAnalyzeResponse(BaseModel):
+    summary: str = Field(min_length=1)
+    primary_issue: str | None = None
+    explanation: str = Field(min_length=1)
+    recommendations: list[str] = Field(max_length=3)
+    next_session_goal: str = Field(min_length=1)
+    safety_note: str = Field(min_length=1)
+    retrieved_guidance: list[RetrievedGuidanceItem] = Field(default_factory=list)
+    source: Literal["llm", "deterministic"] = "deterministic"
+    model: str | None = None

@@ -41,9 +41,16 @@ def validate_session_payload(payload: SessionCreateRequest) -> float:
                 detail=f"rep_number must be >= 1 (got {rep.rep_number})",
             )
 
-    rep_numbers = {rep.rep_number for rep in payload.reps}
+    rep_numbers = [rep.rep_number for rep in payload.reps]
+    if rep_numbers != list(range(1, payload.rep_count + 1)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="rep_number values must be unique and sequential starting at 1",
+        )
+
+    rep_number_set = set(rep_numbers)
     for issue in payload.form_issues:
-        if issue.rep_number not in rep_numbers:
+        if issue.rep_number not in rep_number_set:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(

@@ -5,6 +5,7 @@ import { drawPose } from "@/pose/drawing.js";
 import { AnalysisPipeline } from "@/pipeline/AnalysisPipeline.js";
 import { squatConfig } from "@shared/exercise-config/squat.config.js";
 import { calculateFormScore } from "@/analysis/FormRuleEngine.js";
+import { MetricsEngine } from "@/analysis/MetricsEngine.js";
 import { getBaseline } from "@/api/calibrationApi.js";
 import { PlayIcon, StopIcon, AlertCircleIcon, SparklesIcon } from "./ui/Icons.jsx";
 import SessionSummaryModal from "./SessionSummaryModal.jsx";
@@ -24,6 +25,7 @@ export default function CameraView() {
   const [sessionSummary, setSessionSummary] = useState(null);
   const [collectedIssues, setCollectedIssues] = useState([]);
   const [baseline, setBaseline] = useState(null);
+  const metricsEngine = useRef(new MetricsEngine());
 
   // Starts recording a squat set.
   function handleStartSet() {
@@ -73,13 +75,7 @@ export default function CameraView() {
       durationSeconds,
       repCount,
       formScore,
-      reps: reps.map((r, i) => ({
-        repNumber: i + 1,
-        durationSeconds: (r.endMs - r.startMs) / 1000,
-        romValue: r.minAngleDeg || 90,
-        tempo: (r.endMs - r.startMs) / 1000,
-        angleMetrics: { minAngle: r.minAngleDeg || 0, peakAngle: r.peakAngleDeg || 0 },
-      })),
+      reps: reps.map((r) => metricsEngine.current.compute(r)),
       formIssues: allIssues,
     };
 

@@ -4,7 +4,7 @@ Session CRUD (create/list/get). `user_id` is ALWAYS derived from the JWT via
 filters `WHERE user_id = current_user.id`, so a user can never read or create
 data attributed to another user.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session as DBSession
 
 from app.database import get_db
@@ -67,11 +67,15 @@ def create_session(
 def list_sessions(
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
     return (
         db.query(SessionModel)
         .filter(SessionModel.user_id == current_user.id)
         .order_by(SessionModel.started_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 

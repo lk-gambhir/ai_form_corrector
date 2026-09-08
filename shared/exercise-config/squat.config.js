@@ -36,8 +36,8 @@ export const squatConfig = {
     minFrames: 3,
   },
   rules: {
-    depth: { enabled: true, minAngleDeg: 90, cue: "Squat deeper - hips below knees" },
-    torso_lean: { enabled: true, maxAngleDeg: 20, cue: "Keep torso more upright" },
+    depth: { enabled: true, minAngleDeg: 90, tolerance: 5, safetyFloor: 70, cue: "Squat deeper - hips below knees" },
+    torso_lean: { enabled: true, maxAngleDeg: 20, tolerance: 3, safetyCeiling: 35, cue: "Keep torso more upright" },
   },
   tempoBounds: { minSec: 0.5, maxSec: 12 },
   scoreWeights: {

@@ -4,7 +4,6 @@ import { CalibrationEngine } from "@/analysis/CalibrationEngine.js";
 import { saveBaseline, getBaseline } from "@/api/calibrationApi.js";
 import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
-import realSquatGood from "@/fixtures/real-squat-good.json";
 import { CheckIcon, SparklesIcon, TargetIcon } from "./ui/Icons.jsx";
 
 export default function CalibrationView() {
@@ -113,26 +112,26 @@ export default function CalibrationView() {
     };
   }, []);
 
-  // Captures standing pose frames from live camera or verified athlete recording.
+  // Captures a standing pose from the current user's live camera.
   function handleCaptureStanding() {
     const liveLandmarks = currentLandmarksRef.current;
-    const realStandingFrame = liveLandmarks && liveLandmarks.length > 28
-      ? liveLandmarks
-      : realSquatGood.frames[0].landmarks;
-
-    engine.addStandingFrame(realStandingFrame);
+    if (!liveLandmarks || liveLandmarks.length <= 28) {
+      setStatus("Your full body is not visible yet. Adjust the camera and try again.");
+      return;
+    }
+    engine.addStandingFrame(liveLandmarks);
     setStatus("Standing pose recorded! Next, descend into deep squat depth.");
     setStep(2);
   }
 
-  // Captures bottom squat inflection frames from live camera or verified athlete recording.
+  // Captures a bottom squat pose from the current user's live camera.
   function handleCaptureBottom() {
     const liveLandmarks = currentLandmarksRef.current;
-    const realBottomFrame = liveLandmarks && liveLandmarks.length > 28
-      ? liveLandmarks
-      : realSquatGood.frames[71].landmarks;
-
-    engine.addBottomFrame(realBottomFrame);
+    if (!liveLandmarks || liveLandmarks.length <= 28) {
+      setStatus("Your squat position is not visible yet. Adjust the camera and try again.");
+      return;
+    }
+    engine.addBottomFrame(liveLandmarks);
     const computed = engine.generateBaseline();
     setBaseline(computed);
     setStatus("Calibration computed! Review your personalized biomechanics.");
@@ -146,7 +145,7 @@ export default function CalibrationView() {
       await saveBaseline(baseline);
       setSavedStatus("Baseline saved to your athlete profile!");
     } catch (err) {
-      setSavedStatus(`Saved locally (${err.message || "backend offline"})`);
+      setSavedStatus(`Could not save baseline: ${err.message || "backend offline"}`);
     }
   }
 
@@ -247,6 +246,12 @@ export default function CalibrationView() {
                 <span className="m-label">Bottom Knee Angle</span>
                 <span className="m-val">{baseline.rom.kneeBottom}°</span>
               </div>
+              {baseline.rom.typicalTorsoLean != null && (
+                <div className="metric-row">
+                  <span className="m-label">Typical Torso Lean</span>
+                  <span className="m-val">{baseline.rom.typicalTorsoLean}°</span>
+                </div>
+              )}
             </div>
 
             <div className="step-actions">

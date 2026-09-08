@@ -639,6 +639,7 @@ h1, h2, h3, .brand h1, .stat-value, .card-value, .radial-number, .login-hero-tit
   justify-content: center;
   padding: 1rem;
   z-index: 1000;
+  overflow-y: auto;
 }
 
 .modal-card {
@@ -648,6 +649,8 @@ h1, h2, h3, .brand h1, .stat-value, .card-value, .radial-number, .login-hero-tit
   padding: 2rem;
   width: 100%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
 }
 
@@ -1109,5 +1112,367 @@ h1, h2, h3, .brand h1, .stat-value, .card-value, .radial-number, .login-hero-tit
   color: #FFF;
   border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 10;
+}
+
+/* ==========================================================================
+   AI Coaching RAG Styles
+   ========================================================================== */
+
+.ai-coaching-section {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, rgba(16, 24, 40, 0.85), rgba(8, 14, 26, 0.95));
+  border: 1px solid rgba(0, 240, 118, 0.22);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-coaching-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+
+.ai-coaching-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ai-coaching-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ai-badge-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 240, 118, 0.12);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0, 240, 118, 0.2);
+}
+
+.ai-coaching-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.ai-coaching-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+.primary-issue-chip {
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(255, 171, 0, 0.15);
+  color: #FFB300;
+  border: 1px solid rgba(255, 171, 0, 0.3);
+  text-transform: capitalize;
+}
+
+.source-badge {
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.source-badge.deterministic {
+  background: rgba(100, 180, 255, 0.12);
+  color: #64B5F6;
+  border: 1px solid rgba(100, 180, 255, 0.25);
+}
+.source-badge.llm {
+  background: rgba(130, 100, 255, 0.12);
+  color: #B388FF;
+  border: 1px solid rgba(130, 100, 255, 0.25);
+}
+
+.ai-coaching-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(0, 240, 118, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-coaching-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: #FF6B6B;
+  font-size: 0.85rem;
+}
+
+.ai-coaching-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.coaching-explanation-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+}
+
+.coaching-summary-text {
+  margin: 0 0 0.4rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #FFFFFF;
+}
+
+.coaching-detail-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.coaching-recs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.block-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.coaching-recs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.coaching-rec-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(0, 240, 118, 0.04);
+  border: 1px solid rgba(0, 240, 118, 0.12);
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: #E2E8F0;
+}
+
+.rec-bullet-icon {
+  margin-top: 2px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.coaching-goal-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(90deg, rgba(0, 240, 118, 0.08), rgba(0, 180, 216, 0.05));
+  border: 1px solid rgba(0, 240, 118, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.goal-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.goal-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.goal-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.goal-text {
+  font-size: 0.85rem;
+  color: #FFFFFF;
+}
+
+.coaching-evidence-accordion {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.6rem;
+}
+
+.btn-toggle-evidence {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  width: 100%;
+  text-align: left;
+  transition: color 0.2s ease;
+}
+
+.btn-toggle-evidence:hover {
+  color: var(--accent);
+}
+
+.chevron-icon {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+.evidence-passages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.evidence-passage-card {
+  padding: 0.7rem 0.85rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-sm);
+}
+
+.evidence-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.evidence-title {
+  font-size: 0.8rem;
+  color: #FFFFFF;
+}
+
+.evidence-score-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  background: rgba(0, 240, 118, 0.15);
+  color: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+.evidence-body {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  margin: 0 0 0.35rem;
+}
+
+.evidence-source-id {
+  font-size: 0.68rem;
+  color: var(--text-subtle);
+  font-family: monospace;
+}
+
+.coaching-safety-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  color: var(--text-subtle);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+/* Dashboard AI Focus Card */
+.ai-focus-card {
+  border: 1px solid rgba(0, 240, 118, 0.25);
+  background: linear-gradient(135deg, rgba(16, 24, 40, 0.75), rgba(6, 12, 22, 0.9));
+  margin-bottom: 1.5rem;
+}
+
+.ai-focus-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ai-focus-title-wrap h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.badge-accent {
+  background: rgba(0, 240, 118, 0.15);
+  color: var(--accent);
+}
+
+.ai-focus-body {
+  padding-top: 0.5rem;
+}
+
+.ai-focus-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #E2E8F0;
 }
 

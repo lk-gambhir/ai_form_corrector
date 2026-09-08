@@ -33,4 +33,11 @@ export class FeedbackSelector {
 
     return { activeCue: this.lastCue, severity: this.lastSeverity };
   }
+
+  // Resets debounced feedback state.
+  reset() {
+    this.lastCue = null;
+    this.lastSeverity = null;
+    this.lastUpdate = 0;
+  }
 }

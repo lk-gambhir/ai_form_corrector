@@ -1,35 +1,54 @@
 // Athlete landing and authentication gateway using Google OAuth.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext.jsx";
-import { GoogleIcon, ActivityIcon, TargetIcon, AwardIcon } from "@/components/ui/Icons.jsx";
+import { ActivityIcon, TargetIcon, AwardIcon } from "@/components/ui/Icons.jsx";
 
 export default function LoginPage() {
-  const { loginWithGoogle, loading, authError } = useAuth();
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const { loginWithGoogle, authError } = useAuth();
   const [localError, setLocalError] = useState(null);
+  const googleButtonRef = useRef(null);
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-  async function handleGoogleSignIn(e) {
-    if (e && e.preventDefault) e.preventDefault();
-    setLocalError(null);
+  useEffect(() => {
+    if (!clientId || !googleButtonRef.current) return;
 
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setLocalError("Please enter your Google account email to continue.");
-      return;
-    }
-    if (!trimmedEmail.includes("@") || !trimmedEmail.includes(".")) {
-      setLocalError("Please enter a valid Google account email.");
-      return;
-    }
-
-    try {
-      await loginWithGoogle({
-        email: trimmedEmail,
-        name: name.trim() || undefined,
+    let cancelled = false;
+    const renderButton = () => {
+      if (cancelled || !window.google?.accounts?.id || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          setLocalError(null);
+          try {
+            await loginWithGoogle({ token: credential });
+          } catch (_) {}
+        },
       });
-    } catch (_) {}
-  }
+      googleButtonRef.current.replaceChildren();
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+        text: "continue_with",
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderButton();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = renderButton;
+      script.onerror = () => setLocalError("Google Sign-In could not be loaded.");
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, loginWithGoogle]);
 
   return (
     <div className="login-page-container" data-testid="login-page">
@@ -49,47 +68,16 @@ export default function LoginPage() {
           <p className="auth-error-banner" data-testid="auth-error">{localError || authError}</p>
         )}
 
-        <form className="oauth-action-area" onSubmit={handleGoogleSignIn}>
-          <div className="login-input-group">
-            <label htmlFor="google-email" className="login-input-label">Google Account Email</label>
-            <input
-              id="google-email"
-              type="email"
-              className="login-input-field"
-              placeholder="athlete@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              data-testid="input-google-email"
-              autoComplete="email"
-              required
-            />
-          </div>
-
-          <div className="login-input-group">
-            <label htmlFor="athlete-name" className="login-input-label">Athlete Name (Optional)</label>
-            <input
-              id="athlete-name"
-              type="text"
-              className="login-input-field"
-              placeholder="Your Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              data-testid="input-athlete-name"
-              autoComplete="name"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="btn-google-oauth"
-            disabled={loading}
-            data-testid="btn-google-login"
-          >
-            <GoogleIcon size={20} />
-            <span>{loading ? "Authenticating..." : "Continue with Google"}</span>
-          </button>
+        <div className="oauth-action-area">
+          {clientId ? (
+            <div ref={googleButtonRef} data-testid="google-signin-button" />
+          ) : (
+            <p className="auth-error-banner" data-testid="google-config-error">
+              Google Sign-In is not configured for this environment.
+            </p>
+          )}
           <span className="oauth-hint">Secured by Google Identity &bull; Zero telemetry video</span>
-        </form>
+        </div>
 
         <div className="login-highlights-grid">
           <div className="highlight-item">

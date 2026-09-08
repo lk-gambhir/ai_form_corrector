@@ -1,5 +1,5 @@
 // Global authentication context supporting Google OAuth.
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import * as authApi from "@/api/authApi.js";
 
 const AuthContext = createContext(null);
@@ -8,7 +8,13 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem("user");
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      localStorage.removeItem("user");
+      return null;
+    }
   });
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
@@ -35,9 +41,9 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   // Authenticates athlete via Google OAuth using real user credentials.
-  async function loginWithGoogle(googleData = {}) {
-    if (!googleData?.email || !googleData.email.includes("@")) {
-      const err = new Error("A valid Google account email is required.");
+  const loginWithGoogle = useCallback(async function loginWithGoogle(googleData = {}) {
+    if (!googleData?.token) {
+      const err = new Error("Google did not return a valid identity token.");
       setAuthError(err.message);
       throw err;
     }
@@ -45,30 +51,14 @@ export function AuthProvider({ children }) {
     setLoading(true);
     setAuthError(null);
     try {
-      const email = googleData.email.trim().toLowerCase();
-      const name = googleData.name?.trim() || email.split("@")[0];
       const payload = {
-        token: googleData.token || "google-oauth-token",
-        email,
-        name,
+        token: googleData.token,
+        email: googleData.email?.trim().toLowerCase() || undefined,
+        name: googleData.name?.trim() || undefined,
         picture: googleData.picture || null,
       };
 
-      let res;
-      try {
-        res = await authApi.googleAuth(payload);
-      } catch (networkErr) {
-        // Local offline fallback preserving actual user data if backend is offline.
-        res = {
-          access_token: "google-session-" + Date.now(),
-          user: {
-            id: "athlete-" + Date.now(),
-            username: name.toLowerCase().replace(/\s+/g, "_"),
-            email,
-            display_name: name,
-          },
-        };
-      }
+      const res = await authApi.googleAuth(payload);
 
       setToken(res.access_token);
       setUser(res.user);
@@ -81,7 +71,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   // Logs athlete out and clears local session storage.
   function logout() {

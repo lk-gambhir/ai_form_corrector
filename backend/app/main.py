@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import Base, engine
-from app.routers import auth, calibration, dashboard, health, sessions
+from app.routers import auth, calibration, coaching, dashboard, health, sessions
 
 # Import models so their tables are registered on Base.metadata before
 # create_all runs.
@@ -40,3 +40,4 @@ app.include_router(auth.router)
 app.include_router(sessions.router)
 app.include_router(dashboard.router)
 app.include_router(calibration.router)
+app.include_router(coaching.router)

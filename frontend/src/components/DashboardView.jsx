@@ -16,7 +16,7 @@ export default function DashboardView() {
       try {
         const [sumRes, sessRes] = await Promise.allSettled([
           getDashboardSummary(),
-          getSessions(),
+          getSessions({ limit: 5 }),
         ]);
         if (!mounted) return;
         if (sumRes.status === "fulfilled") setSummary(sumRes.value);
@@ -87,6 +87,24 @@ export default function DashboardView() {
       </div>
 
       <div className="dashboard-sections">
+        {summary?.most_common_issues?.length > 0 && (
+          <div className="section-card ai-focus-card" data-testid="ai-dashboard-focus">
+            <div className="section-card-header">
+              <div className="ai-focus-title-wrap">
+                <SparklesIcon size={16} className="text-accent" />
+                <h3>AI Coaching Focus</h3>
+              </div>
+              <span className="section-badge badge-accent">RAG Guidance</span>
+            </div>
+            <div className="ai-focus-body">
+              <p className="ai-focus-text">
+                Your primary recurring kinematic deviation is <strong>{summary.most_common_issues[0].issue_type.replace("_", " ")}</strong> ({summary.most_common_issues[0].count} occurrences).
+                Prioritize approved corrective variations (paused goblet squats or box squats) and keep your movement within your calibrated baseline angles.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="section-card">
           <div className="section-card-header">
             <h3>Technique Flaw Breakdown</h3>
