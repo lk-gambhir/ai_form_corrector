@@ -1,13 +1,17 @@
-// Athlete dashboard displaying training metrics, scores, and historical sessions.
+// Athlete Performance Dashboard: Minimalist stealth black command center.
 import { useEffect, useState } from "react";
 import { getDashboardSummary } from "@/api/dashboardApi.js";
 import { getSessions } from "@/api/sessionApi.js";
-import { ActivityIcon, AwardIcon, BarChartIcon, TargetIcon, AlertCircleIcon, SparklesIcon } from "./ui/Icons.jsx";
+import {
+  ActivityIcon,
+  AwardIcon,
+  BarChartIcon,
+  TargetIcon,
+} from "./ui/Icons.jsx";
 
-export default function DashboardView() {
+export default function DashboardView({ onNavigate }) {
   const [summary, setSummary] = useState(null);
   const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -21,144 +25,185 @@ export default function DashboardView() {
         if (!mounted) return;
         if (sumRes.status === "fulfilled") setSummary(sumRes.value);
         if (sessRes.status === "fulfilled") setSessions(sessRes.value || []);
-      } catch (_) {
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      } catch (_) {}
     }
 
     loadData();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
     <div className="dashboard-container" data-testid="dashboard-view">
-      <div className="dashboard-header">
-        <div className="dashboard-title-group">
-          <h2>Performance Analytics</h2>
-          <p className="subtitle">Real-time biomechanical analysis and form score progression</p>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-        <div className="stat-card">
-          <div className="stat-card-top">
-            <span className="card-label">Total Sessions</span>
-            <span className="stat-icon-wrap"><BarChartIcon size={16} /></span>
+      {/* Minimalist Hero Banner */}
+      <section className="hero-banner" data-testid="hero-banner">
+        <div className="hero-content">
+          <div className="hero-brand-tag">
+            <span className="pulse-dot red" />
+            <span>AI KINEMATICS // SQUAT FORM ANALYZER</span>
           </div>
-          <span className="card-value" data-testid="stat-total-sessions">{summary?.total_sessions ?? sessions.length ?? 0}</span>
-          <span className="stat-meta">Completed workouts</span>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-card-top">
-            <span className="card-label">Total Reps</span>
-            <span className="stat-icon-wrap"><ActivityIcon size={16} /></span>
+          <h1 className="hero-title">
+            IT'S ALL ABOUT WHAT YOU CAN ACHIEVE
+          </h1>
+
+          <p className="hero-subtitle">
+            Empower yourself to make the changes you need to make. Real-time computer vision joint tracking, parallel depth validation, and instant biomechanical feedback.
+          </p>
+
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="hero-cta-btn"
+              onClick={() => onNavigate && onNavigate("workout")}
+              data-testid="hero-btn-start"
+            >
+              LET'S GET STARTED
+            </button>
+            <button
+              type="button"
+              className="hero-secondary-btn"
+              onClick={() => onNavigate && onNavigate("calibration")}
+            >
+              Calibrate Biomechanics
+            </button>
           </div>
-          <span className="card-value" data-testid="stat-total-reps">{summary?.total_reps ?? 0}</span>
-          <span className="stat-meta">Deep squat reps</span>
+        </div>
+      </section>
+
+      {/* Performance Metrics Snapshot Cards */}
+      <section className="snapshot-metrics-section">
+        <div className="section-header-wrap">
+          <h2 className="section-title">
+            <BarChartIcon size={18} />
+            <span>Performance Snapshot</span>
+          </h2>
+          <span className="section-tag">Live Telemetry</span>
         </div>
 
-        <div className="stat-card accent-card">
-          <div className="stat-card-top">
-            <span className="card-label">Average Score</span>
-            <span className="stat-icon-wrap"><AwardIcon size={16} /></span>
+        <div className="dashboard-grid">
+          <div className="stat-card">
+            <div className="stat-card-top">
+              <span className="card-label">Total Workouts</span>
+              <span className="stat-icon-wrap">
+                <BarChartIcon size={15} />
+              </span>
+            </div>
+            <span className="card-value" data-testid="stat-total-sessions">
+              {summary?.total_sessions ?? sessions.length ?? 0}
+            </span>
+            <span className="stat-meta">Completed workout sessions</span>
           </div>
-          <span className="card-value" data-testid="stat-avg-score">
-            {summary?.avg_form_score != null ? `${Math.round(summary.avg_form_score)}%` : "—"}
-          </span>
-          <span className="stat-meta text-accent">
-            {summary?.avg_form_score != null ? "Biomechanical average" : "No sessions yet"}
-          </span>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-card-top">
-            <span className="card-label">Best Form Score</span>
-            <span className="stat-icon-wrap"><TargetIcon size={16} /></span>
+          <div className="stat-card">
+            <div className="stat-card-top">
+              <span className="card-label">Total Reps</span>
+              <span className="stat-icon-wrap">
+                <ActivityIcon size={15} />
+              </span>
+            </div>
+            <span className="card-value" data-testid="stat-total-reps">
+              {summary?.total_reps ?? 0}
+            </span>
+            <span className="stat-meta">Analyzed squat reps</span>
           </div>
-          <span className="card-value">
-            {summary?.best_form_score != null ? `${Math.round(summary.best_form_score)}%` : "—"}
-          </span>
-          <span className="stat-meta">
-            {summary?.best_form_score != null ? "Personal best set" : "No sessions yet"}
-          </span>
-        </div>
-      </div>
 
-      <div className="dashboard-sections">
-        {summary?.most_common_issues?.length > 0 && (
-          <div className="section-card ai-focus-card" data-testid="ai-dashboard-focus">
-            <div className="section-card-header">
-              <div className="ai-focus-title-wrap">
-                <SparklesIcon size={16} className="text-accent" />
-                <h3>AI Coaching Focus</h3>
+          <div className="stat-card accent-card">
+            <div className="stat-card-top">
+              <span className="card-label">Average Score</span>
+              <span className="stat-icon-wrap">
+                <AwardIcon size={15} />
+              </span>
+            </div>
+            <span className="card-value" data-testid="stat-avg-score">
+              {summary?.avg_form_score != null ? `${Math.round(summary.avg_form_score)}%` : "—"}
+            </span>
+            <span className="stat-meta">
+              {summary?.avg_form_score != null ? "Form precision average" : "Ready for first set"}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Workout Stations (Direct Access Portals) */}
+      <section className="portal-stations-section">
+        <div className="section-header-wrap">
+          <h2 className="section-title">
+            <ActivityIcon size={18} />
+            <span>Training Stations</span>
+          </h2>
+          <span className="section-tag">Direct Access</span>
+        </div>
+
+        <div className="quick-actions-grid">
+          <div className="action-sketch-card">
+            <div className="action-sketch-top">
+              <div className="action-sketch-icon">
+                <ActivityIcon size={20} />
               </div>
-              <span className="section-badge badge-accent">RAG Guidance</span>
+              <div className="action-sketch-content">
+                <h4>Rep & Set Counting Lab</h4>
+                <p>
+                  High-speed live camera studio with automated rep counting, depth analysis, and active joint HUD.
+                </p>
+              </div>
             </div>
-            <div className="ai-focus-body">
-              <p className="ai-focus-text">
-                Your primary recurring kinematic deviation is <strong>{summary.most_common_issues[0].issue_type.replace("_", " ")}</strong> ({summary.most_common_issues[0].count} occurrences).
-                Prioritize approved corrective variations (paused goblet squats or box squats) and keep your movement within your calibrated baseline angles.
-              </p>
-            </div>
+            <button
+              type="button"
+              className="btn btn-primary action-sketch-btn"
+              onClick={() => onNavigate && onNavigate("workout")}
+              data-testid="btn-launch-workout"
+            >
+              Open Rep & Set Counter
+            </button>
           </div>
-        )}
 
-        <div className="section-card">
-          <div className="section-card-header">
-            <h3>Technique Flaw Breakdown</h3>
-            <span className="section-badge">Priority Cues</span>
-          </div>
-          {summary?.most_common_issues?.length > 0 ? (
-            <ul className="common-issues-list" data-testid="common-issues-list">
-              {summary.most_common_issues.map((issue, idx) => (
-                <li key={idx} className="issue-row">
-                  <div className="issue-info">
-                    <span className="issue-name">{issue.issue_type.replace("_", " ")}</span>
-                    <span className="issue-count">{issue.count} occurrences</span>
-                  </div>
-                  <div className="issue-bar-wrap">
-                    <div className="issue-bar" style={{ width: `${Math.min(100, issue.count * 25)}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="empty-state-box">
-              <SparklesIcon size={24} className="empty-icon" />
-              <p className="empty-hint">Clean technique! No recurring form deviations recorded.</p>
+          <div className="action-sketch-card">
+            <div className="action-sketch-top">
+              <div className="action-sketch-icon">
+                <TargetIcon size={20} />
+              </div>
+              <div className="action-sketch-content">
+                <h4>Biomechanics Calibration</h4>
+                <p>
+                  Fine-tune personal limb ratios, baseline depth threshold, and joint baseline angles.
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+            <button
+              type="button"
+              className="btn btn-secondary action-sketch-btn"
+              onClick={() => onNavigate && onNavigate("calibration")}
+              data-testid="btn-launch-calibration"
+            >
+              Open Calibration Desk
+            </button>
+          </div>
 
-        <div className="section-card">
-          <div className="section-card-header">
-            <h3>Session History</h3>
-            <span className="section-badge">Cloud Log</span>
+          <div className="action-sketch-card">
+            <div className="action-sketch-top">
+              <div className="action-sketch-icon">
+                <BarChartIcon size={20} />
+              </div>
+              <div className="action-sketch-content">
+                <h4>Training Logbook & Analytics</h4>
+                <p>
+                  In-depth history of completed sets, recurring flaw frequencies, and form score trends.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary action-sketch-btn"
+              onClick={() => onNavigate && onNavigate("history")}
+              data-testid="btn-launch-history"
+            >
+              View Full Logbook
+            </button>
           </div>
-          {sessions.length > 0 ? (
-            <div className="sessions-list" data-testid="sessions-history-list">
-              {sessions.slice(0, 5).map((s) => (
-                <div key={s.id} className="session-row">
-                  <div className="session-info">
-                    <span className="session-exercise">{s.exercise.toUpperCase()}</span>
-                    <span className="session-date">{new Date(s.started_at).toLocaleDateString()}</span>
-                  </div>
-                  <div className="session-stats">
-                    <span className="session-reps">{s.rep_count} reps</span>
-                    <span className="session-score-pill">{Math.round(s.form_score)}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state-box">
-              <p className="empty-hint">Start a squat set to log your first cloud session!</p>
-            </div>
-          )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

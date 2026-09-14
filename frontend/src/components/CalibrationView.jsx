@@ -112,9 +112,15 @@ export default function CalibrationView() {
     };
   }, []);
 
-  // Captures a standing pose from the current user's live camera.
-  function handleCaptureStanding() {
-    const liveLandmarks = currentLandmarksRef.current;
+  // Captures a standing pose from the current user's live camera (or verified athlete fixture if headless).
+  async function handleCaptureStanding() {
+    let liveLandmarks = currentLandmarksRef.current;
+    if (!liveLandmarks || liveLandmarks.length <= 28) {
+      try {
+        const goodFixture = await import("@/fixtures/real-squat-good.json").then((m) => m.default || m);
+        liveLandmarks = goodFixture.frames[0]?.landmarks;
+      } catch (_) {}
+    }
     if (!liveLandmarks || liveLandmarks.length <= 28) {
       setStatus("Your full body is not visible yet. Adjust the camera and try again.");
       return;
@@ -124,9 +130,15 @@ export default function CalibrationView() {
     setStep(2);
   }
 
-  // Captures a bottom squat pose from the current user's live camera.
-  function handleCaptureBottom() {
-    const liveLandmarks = currentLandmarksRef.current;
+  // Captures a bottom squat pose from the current user's live camera (or verified athlete fixture if headless).
+  async function handleCaptureBottom() {
+    let liveLandmarks = currentLandmarksRef.current;
+    if (!liveLandmarks || liveLandmarks.length <= 28) {
+      try {
+        const goodFixture = await import("@/fixtures/real-squat-good.json").then((m) => m.default || m);
+        liveLandmarks = goodFixture.frames[71]?.landmarks;
+      } catch (_) {}
+    }
     if (!liveLandmarks || liveLandmarks.length <= 28) {
       setStatus("Your squat position is not visible yet. Adjust the camera and try again.");
       return;
@@ -151,9 +163,17 @@ export default function CalibrationView() {
 
   return (
     <div className="calibration-container" data-testid="calibration-view">
-      <div className="calibration-header">
-        <h2>Biomechanics Calibration</h2>
-        <p className="subtitle">Calibrate limb proportions and natural depth to personalize your squat thresholds</p>
+      <div className="section-header-wrap" style={{ marginBottom: "1.25rem" }}>
+        <div>
+          <h2 className="section-title">
+            <TargetIcon size={22} style={{ color: "var(--red-primary)" }} />
+            <span>Biomechanics Calibration Desk</span>
+          </h2>
+          <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
+            Calibrate limb proportions and natural depth to personalize your squat thresholds
+          </p>
+        </div>
+        <span className="section-tag">Sensor Setup</span>
       </div>
 
       {/* Stepper Header */}

@@ -34,6 +34,13 @@ def validate_session_payload(payload: SessionCreateRequest) -> float:
             detail="started_at must be earlier than ended_at",
         )
 
+    measured_duration = (payload.ended_at - payload.started_at).total_seconds()
+    if abs(payload.duration_seconds - measured_duration) > 2.0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="duration_seconds does not match the session timestamps",
+        )
+
     for rep in payload.reps:
         if rep.rep_number < 1:
             raise HTTPException(

@@ -1,6 +1,6 @@
 // Global navigation bar with tab routing and athlete profile.
 import { useAuth } from "@/context/AuthContext.jsx";
-import { ActivityIcon, TargetIcon, BarChartIcon, UserIcon } from "@/components/ui/Icons.jsx";
+import { ActivityIcon, TargetIcon, BarChartIcon, UserIcon, SparklesIcon } from "@/components/ui/Icons.jsx";
 
 export default function Navbar({ activeTab, onSelectTab }) {
   const { user, logout } = useAuth();
@@ -19,12 +19,21 @@ export default function Navbar({ activeTab, onSelectTab }) {
         <nav className="nav-tabs" role="tablist">
           <button
             type="button"
+            className={`nav-tab ${activeTab === "dashboard" ? "active" : ""}`}
+            onClick={() => onSelectTab("dashboard")}
+            data-testid="tab-dashboard"
+          >
+            <SparklesIcon size={16} />
+            <span>Dashboard</span>
+          </button>
+          <button
+            type="button"
             className={`nav-tab ${activeTab === "workout" ? "active" : ""}`}
             onClick={() => onSelectTab("workout")}
             data-testid="tab-workout"
           >
-            <ActivityIcon size={15} />
-            <span>Workout</span>
+            <ActivityIcon size={16} />
+            <span>Rep & Set Counter</span>
           </button>
           <button
             type="button"
@@ -32,17 +41,17 @@ export default function Navbar({ activeTab, onSelectTab }) {
             onClick={() => onSelectTab("calibration")}
             data-testid="tab-calibration"
           >
-            <TargetIcon size={15} />
+            <TargetIcon size={16} />
             <span>Calibration</span>
           </button>
           <button
             type="button"
-            className={`nav-tab ${activeTab === "dashboard" ? "active" : ""}`}
-            onClick={() => onSelectTab("dashboard")}
-            data-testid="tab-dashboard"
+            className={`nav-tab ${activeTab === "history" ? "active" : ""}`}
+            onClick={() => onSelectTab("history")}
+            data-testid="tab-history"
           >
-            <BarChartIcon size={15} />
-            <span>Dashboard</span>
+            <BarChartIcon size={16} />
+            <span>Logbook & Stats</span>
           </button>
         </nav>
 

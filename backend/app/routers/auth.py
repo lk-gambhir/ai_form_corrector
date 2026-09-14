@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
@@ -10,13 +9,11 @@ from app.database import get_db
 from app.models import User
 from app.schemas import (
     GoogleAuthRequest,
-    LoginRequest,
-    RegisterRequest,
-    RegisterResponse,
+    OAuthResponse,
     TokenResponse,
     UserResponse,
 )
-from app.security import create_access_token, get_current_user, hash_password, verify_password
+from app.security import create_access_token, get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -43,7 +40,7 @@ def verify_google_token(token_str: str, client_id: str | None, environment: str)
         )
 
 
-@router.post("/google", response_model=RegisterResponse)
+@router.post("/google", response_model=OAuthResponse)
 def google_auth(payload: GoogleAuthRequest, db: DBSession = Depends(get_db)):
     settings = get_settings()
     token_data = verify_google_token(payload.token, settings.google_client_id, settings.environment)
@@ -77,58 +74,14 @@ def google_auth(payload: GoogleAuthRequest, db: DBSession = Depends(get_db)):
         except IntegrityError:
             db.rollback()
             user = db.query(User).filter(User.email == email).first()
+            if user is None:
+                raise HTTPException(status_code=409, detail="Could not create OAuth account")
         db.refresh(user)
 
     token = create_access_token(user.id)
-    return RegisterResponse(user=UserResponse.model_validate(user), access_token=token)
+    return OAuthResponse(user=UserResponse.model_validate(user), access_token=token)
 
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
-
-
-@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: DBSession = Depends(get_db)):
-    conditions = [User.username == payload.username]
-    if payload.email:
-        conditions.append(User.email == payload.email)
-    existing = db.query(User).filter(or_(*conditions)).first()
-    if existing is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already taken")
-
-    user = User(
-        username=payload.username,
-        email=payload.email,
-        password_hash=hash_password(payload.password),
-        display_name=payload.display_name,
-    )
-    db.add(user)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username or email already taken")
-    db.refresh(user)
-
-    token = create_access_token(user.id)
-    return RegisterResponse(user=UserResponse.model_validate(user), access_token=token)
-
-
-@router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: DBSession = Depends(get_db)):
-    user = db.query(User).filter(User.username == payload.username).first()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
-
-    if user.password_hash.startswith("!oauth_"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This account was registered using Google OAuth. Please sign in with Google.",
-        )
-
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
-
-    token = create_access_token(user.id)
-    return TokenResponse(access_token=token)

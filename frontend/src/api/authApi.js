@@ -8,20 +8,6 @@ export async function googleAuth(data = {}) {
   });
 }
 
-export async function register(data) {
-  return apiRequest("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function login(username, password) {
-  return apiRequest("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password }),
-  });
-}
-
 export async function getMe() {
   return apiRequest("/auth/me");
 }

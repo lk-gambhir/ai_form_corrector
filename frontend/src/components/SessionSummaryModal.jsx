@@ -89,7 +89,9 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
             <span className="modal-eyebrow">Workout Complete</span>
             <h2>Squat Set Summary</h2>
           </div>
-          <button className="btn-close" onClick={onClose} data-testid="btn-close-summary">✕</button>
+          <button className="btn-close" onClick={onClose} data-testid="btn-close-summary" aria-label="Close">
+            &times;
+          </button>
         </div>
 
         {/* Circular score display */}

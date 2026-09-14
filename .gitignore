@@ -7,6 +7,7 @@ __pycache__/
 *.pyc
 
 # build output
+frontend/.env.local
 frontend/dist/
 *.egg-info/
 
@@ -37,3 +38,23 @@ frontend/public/models/*.task
 # playwright artifacts
 frontend/test-results/
 frontend/playwright-report/
+
+# GSD Template
+.agents/
+.gemini/
+.gsd/
+adapters/
+docs/
+scripts/
+PROJECT_RULES.md
+GSD-STYLE.md
+model_capabilities.yaml
+
+# Excluded documentation and test directories
+*.md
+journals/
+memory/
+start.sh
+backend/app/tests/
+frontend/src/__tests__/
+frontend/e2e/

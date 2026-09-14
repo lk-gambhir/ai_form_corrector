@@ -1,6 +1,5 @@
 """
-Password hashing (bcrypt, direct — see requirements.txt for why we don't use
-passlib) + JWT issuance/verification (python-jose) + the `get_current_user`
+JWT issuance/verification (python-jose) + the `get_current_user`
 dependency every protected route depends on.
 
 Security invariant enforced here: `get_current_user` is the ONLY source of
@@ -9,7 +8,6 @@ this dependency and never from the request body/query string.
 """
 from datetime import datetime, timedelta, timezone
 
-import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -21,19 +19,7 @@ from app.models import User
 
 # tokenUrl is just where /docs points its "try it out" login form at; the
 # dependency itself accepts any bearer token regardless of how it was minted.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
-
-
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def verify_password(password: str, password_hash: str) -> bool:
-    try:
-        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
-    except ValueError:
-        # Malformed hash (shouldn't happen for rows we wrote ourselves).
-        return False
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/google", auto_error=False)
 
 
 def create_access_token(user_id: str) -> str:

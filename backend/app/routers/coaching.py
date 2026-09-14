@@ -22,7 +22,7 @@ def get_optional_user(
         user_id = decode_access_token(token)
         return db.get(User, user_id)
     except HTTPException:
-        return None
+        raise
 
 
 @router.post("/analyze", response_model=CoachingAnalyzeResponse)

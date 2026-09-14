@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div className="login-hero-card">
         <div className="login-badge-wrap">
           <div className="login-gem-dot" />
-          <span className="login-badge-text">AI Form Corrector &bull; Squat Biomechanics</span>
+          <span className="login-badge-text">AI Form Analyzer &bull; Biomechanics</span>
         </div>
 
         <h1 className="login-hero-title">Precision Squat Analysis in Real Time</h1>
