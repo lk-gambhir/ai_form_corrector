@@ -2,12 +2,6 @@
 import { useEffect, useState } from "react";
 import { getDashboardSummary } from "@/api/dashboardApi.js";
 import { getSessions } from "@/api/sessionApi.js";
-import {
-  ActivityIcon,
-  AwardIcon,
-  BarChartIcon,
-  TargetIcon,
-} from "./ui/Icons.jsx";
 
 export default function DashboardView({ onNavigate }) {
   const [summary, setSummary] = useState(null);
@@ -40,7 +34,6 @@ export default function DashboardView({ onNavigate }) {
       <section className="hero-banner" data-testid="hero-banner">
         <div className="hero-content">
           <div className="hero-brand-tag">
-            <span className="pulse-dot red" />
             <span>AI KINEMATICS // SQUAT FORM ANALYZER</span>
           </div>
 
@@ -76,7 +69,6 @@ export default function DashboardView({ onNavigate }) {
       <section className="snapshot-metrics-section">
         <div className="section-header-wrap">
           <h2 className="section-title">
-            <BarChartIcon size={18} />
             <span>Performance Snapshot</span>
           </h2>
           <span className="section-tag">Live Telemetry</span>
@@ -87,7 +79,6 @@ export default function DashboardView({ onNavigate }) {
             <div className="stat-card-top">
               <span className="card-label">Total Workouts</span>
               <span className="stat-icon-wrap">
-                <BarChartIcon size={15} />
               </span>
             </div>
             <span className="card-value" data-testid="stat-total-sessions">
@@ -100,7 +91,6 @@ export default function DashboardView({ onNavigate }) {
             <div className="stat-card-top">
               <span className="card-label">Total Reps</span>
               <span className="stat-icon-wrap">
-                <ActivityIcon size={15} />
               </span>
             </div>
             <span className="card-value" data-testid="stat-total-reps">
@@ -113,7 +103,6 @@ export default function DashboardView({ onNavigate }) {
             <div className="stat-card-top">
               <span className="card-label">Average Score</span>
               <span className="stat-icon-wrap">
-                <AwardIcon size={15} />
               </span>
             </div>
             <span className="card-value" data-testid="stat-avg-score">
@@ -130,7 +119,6 @@ export default function DashboardView({ onNavigate }) {
       <section className="portal-stations-section">
         <div className="section-header-wrap">
           <h2 className="section-title">
-            <ActivityIcon size={18} />
             <span>Training Stations</span>
           </h2>
           <span className="section-tag">Direct Access</span>
@@ -140,7 +128,6 @@ export default function DashboardView({ onNavigate }) {
           <div className="action-sketch-card">
             <div className="action-sketch-top">
               <div className="action-sketch-icon">
-                <ActivityIcon size={20} />
               </div>
               <div className="action-sketch-content">
                 <h4>Rep & Set Counting Lab</h4>
@@ -162,7 +149,6 @@ export default function DashboardView({ onNavigate }) {
           <div className="action-sketch-card">
             <div className="action-sketch-top">
               <div className="action-sketch-icon">
-                <TargetIcon size={20} />
               </div>
               <div className="action-sketch-content">
                 <h4>Biomechanics Calibration</h4>
@@ -184,7 +170,6 @@ export default function DashboardView({ onNavigate }) {
           <div className="action-sketch-card">
             <div className="action-sketch-top">
               <div className="action-sketch-icon">
-                <BarChartIcon size={20} />
               </div>
               <div className="action-sketch-content">
                 <h4>Training Logbook & Analytics</h4>

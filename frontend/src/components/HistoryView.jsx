@@ -2,14 +2,6 @@
 import { useEffect, useState } from "react";
 import { getDashboardSummary } from "@/api/dashboardApi.js";
 import { getSessions } from "@/api/sessionApi.js";
-import {
-  ActivityIcon,
-  AwardIcon,
-  BarChartIcon,
-  TargetIcon,
-  SparklesIcon,
-  ClockIcon,
-} from "./ui/Icons.jsx";
 
 export default function HistoryView({ onNavigate }) {
   const [summary, setSummary] = useState(null);
@@ -46,7 +38,6 @@ export default function HistoryView({ onNavigate }) {
       <div className="section-header-wrap" style={{ marginBottom: "1.25rem" }}>
         <div>
           <h2 className="section-title">
-            <BarChartIcon size={22} style={{ color: "var(--red-primary)" }} />
             <span>Training Logbook & Biomechanical Analytics</span>
           </h2>
           <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
@@ -62,7 +53,6 @@ export default function HistoryView({ onNavigate }) {
           <div className="stat-card-top">
             <span className="card-label">Total Sessions</span>
             <span className="stat-icon-wrap">
-              <BarChartIcon size={16} />
             </span>
           </div>
           <span className="card-value">
@@ -75,7 +65,6 @@ export default function HistoryView({ onNavigate }) {
           <div className="stat-card-top">
             <span className="card-label">Total Reps</span>
             <span className="stat-icon-wrap">
-              <ActivityIcon size={16} />
             </span>
           </div>
           <span className="card-value">
@@ -88,7 +77,6 @@ export default function HistoryView({ onNavigate }) {
           <div className="stat-card-top">
             <span className="card-label">Average Score</span>
             <span className="stat-icon-wrap" style={{ color: "var(--red-primary)", borderColor: "var(--red-border)" }}>
-              <AwardIcon size={16} />
             </span>
           </div>
           <span className="card-value">
@@ -103,7 +91,6 @@ export default function HistoryView({ onNavigate }) {
           <div className="stat-card-top">
             <span className="card-label">Best Form Score</span>
             <span className="stat-icon-wrap">
-              <TargetIcon size={16} />
             </span>
           </div>
           <span className="card-value">
@@ -121,7 +108,6 @@ export default function HistoryView({ onNavigate }) {
           <div className="section-card ai-focus-card" data-testid="ai-dashboard-focus" style={{ gridColumn: "1 / -1", background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.5rem", marginBottom: "1.5rem" }}>
             <div className="section-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <SparklesIcon size={18} style={{ color: "var(--red-primary)" }} />
                 <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff" }}>AI Coaching Diagnosis</h3>
               </div>
               <span className="section-tag">Kinematic Feedback</span>
@@ -163,7 +149,6 @@ export default function HistoryView({ onNavigate }) {
             </ul>
           ) : (
             <div className="empty-state-box" style={{ textAlign: "center", padding: "2rem" }}>
-              <SparklesIcon size={24} style={{ color: "var(--red-primary)", marginBottom: "0.5rem" }} />
               <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Clean technique! No recurring form deviations recorded.</p>
             </div>
           )}
@@ -202,7 +187,6 @@ export default function HistoryView({ onNavigate }) {
             </div>
           ) : (
             <div className="empty-state-box" style={{ textAlign: "center", padding: "2rem" }}>
-              <ClockIcon size={24} style={{ color: "var(--text-muted)", marginBottom: "0.5rem" }} />
               <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
                 No sessions recorded yet. Start a workout in the Rep & Set Counter to log your sets!
               </p>

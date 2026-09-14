@@ -7,7 +7,6 @@ import { squatConfig } from "@shared/exercise-config/squat.config.js";
 import { calculateFormScore } from "@/analysis/FormRuleEngine.js";
 import { MetricsEngine } from "@/analysis/MetricsEngine.js";
 import { getBaseline } from "@/api/calibrationApi.js";
-import { PlayIcon, StopIcon, AlertCircleIcon, SparklesIcon } from "./ui/Icons.jsx";
 import SessionSummaryModal from "./SessionSummaryModal.jsx";
 
 export default function CameraView() {
@@ -226,12 +225,10 @@ export default function CameraView() {
         {/* Status and rep badges inside stage */}
         <div className="stage-hud-top">
           <div className={`status-pill ${state === "running" ? "online" : ""}`}>
-            <span className="pulse-dot" />
             <span data-testid="camera-status">Status: {state}</span>
           </div>
 
           <div className="status-pill" data-testid="baseline-status-pill">
-            <span className="pulse-dot" style={{ background: baseline ? "#10B981" : "#6B7280" }} />
             <span>{baseline?.rom?.kneeBottom ? `Baseline: Depth < ${Math.min(90, Math.round(baseline.rom.kneeBottom + 5))}°` : "Baseline: Standard (90°)"}</span>
           </div>
 
@@ -246,7 +243,6 @@ export default function CameraView() {
         {/* Active coaching cue HUD */}
         {analysis.feedback.activeCue && (
           <div className="hud-cue-banner">
-            <AlertCircleIcon size={18} className="cue-icon" />
             <span>{analysis.feedback.activeCue}</span>
           </div>
         )}
@@ -260,7 +256,6 @@ export default function CameraView() {
             onClick={handleStartSet}
             data-testid="btn-start-set"
           >
-            <PlayIcon size={16} />
             <span>Start Squat Set</span>
           </button>
         ) : (
@@ -270,7 +265,6 @@ export default function CameraView() {
             onClick={handleEndSet}
             data-testid="btn-end-set"
           >
-            <StopIcon size={16} />
             <span>End Set ({analysis.repCount} reps)</span>
           </button>
         )}

@@ -4,7 +4,6 @@ import { CalibrationEngine } from "@/analysis/CalibrationEngine.js";
 import { saveBaseline, getBaseline } from "@/api/calibrationApi.js";
 import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
-import { CheckIcon, SparklesIcon, TargetIcon } from "./ui/Icons.jsx";
 
 export default function CalibrationView() {
   const [engine] = useState(() => new CalibrationEngine());
@@ -166,7 +165,6 @@ export default function CalibrationView() {
       <div className="section-header-wrap" style={{ marginBottom: "1.25rem" }}>
         <div>
           <h2 className="section-title">
-            <TargetIcon size={22} style={{ color: "var(--red-primary)" }} />
             <span>Biomechanics Calibration Desk</span>
           </h2>
           <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
@@ -200,7 +198,6 @@ export default function CalibrationView() {
           <video ref={videoRef} playsInline muted className="calibration-video" />
           <canvas ref={canvasRef} className="calibration-canvas" />
           <div className="calibration-camera-badge">
-            <span className={`status-dot ${isTracking ? "active" : ""}`} />
             <span>{isTracking ? "Live Pose Tracking Active" : "Position yourself in camera frame"}</span>
           </div>
         </div>
@@ -210,7 +207,6 @@ export default function CalibrationView() {
         {step === 1 && (
           <div className="step-content">
             <div className="step-icon-wrap">
-              <TargetIcon size={32} />
             </div>
             <h3>Stand Tall & Steady</h3>
             <p>Position yourself 6–8 feet from the camera with your entire body visible from head to shoes.</p>
@@ -228,7 +224,6 @@ export default function CalibrationView() {
         {step === 2 && (
           <div className="step-content">
             <div className="step-icon-wrap">
-              <SparklesIcon size={32} />
             </div>
             <h3>Hold Deep Squat Inflection</h3>
             <p>Descend into your comfortable bottom squat position with hips back and chest lifted.</p>
@@ -246,7 +241,6 @@ export default function CalibrationView() {
         {step === 3 && baseline && (
           <div className="step-content" data-testid="baseline-results">
             <div className="step-icon-wrap success">
-              <CheckIcon size={32} />
             </div>
             <h3>Calibration Profile Ready</h3>
             <div className="baseline-metrics">

@@ -1,7 +1,6 @@
 // Athlete landing and authentication gateway using Google OAuth.
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext.jsx";
-import { ActivityIcon, TargetIcon, AwardIcon } from "@/components/ui/Icons.jsx";
 
 export default function LoginPage() {
   const { loginWithGoogle, authError } = useAuth();
@@ -54,8 +53,7 @@ export default function LoginPage() {
     <div className="login-page-container" data-testid="login-page">
       <div className="login-hero-card">
         <div className="login-badge-wrap">
-          <div className="login-gem-dot" />
-          <span className="login-badge-text">AI Form Analyzer &bull; Biomechanics</span>
+          <span className="login-badge-text">AI Form Analyzer | Biomechanics</span>
         </div>
 
         <h1 className="login-hero-title">Precision Squat Analysis in Real Time</h1>
@@ -76,12 +74,11 @@ export default function LoginPage() {
               Google Sign-In is not configured for this environment.
             </p>
           )}
-          <span className="oauth-hint">Secured by Google Identity &bull; Zero telemetry video</span>
+          <span className="oauth-hint">Secured by Google Identity | Zero telemetry video</span>
         </div>
 
         <div className="login-highlights-grid">
           <div className="highlight-item">
-            <div className="highlight-icon-wrap"><ActivityIcon size={18} /></div>
             <div className="highlight-text">
               <strong>100% Private</strong>
               <span>No video leaves your device</span>
@@ -89,7 +86,6 @@ export default function LoginPage() {
           </div>
 
           <div className="highlight-item">
-            <div className="highlight-icon-wrap"><TargetIcon size={18} /></div>
             <div className="highlight-text">
               <strong>Personal Baseline</strong>
               <span>Calibrated to your limb ratios</span>
@@ -97,7 +93,6 @@ export default function LoginPage() {
           </div>
 
           <div className="highlight-item">
-            <div className="highlight-icon-wrap"><AwardIcon size={18} /></div>
             <div className="highlight-text">
               <strong>Instant HUD Feedback</strong>
               <span>Live rep counts & depth cues</span>

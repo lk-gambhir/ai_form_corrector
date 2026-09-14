@@ -2,16 +2,6 @@ import React, { useState, useEffect } from "react";
 import { saveSession } from "@/api/sessionApi.js";
 import { getBaseline } from "@/api/calibrationApi.js";
 import { analyzeCoaching, formatCoachingPayload } from "@/api/coachingApi.js";
-import {
-  AwardIcon,
-  ActivityIcon,
-  CheckIcon,
-  AlertCircleIcon,
-  SparklesIcon,
-  TargetIcon,
-  BookOpenIcon,
-  ChevronDownIcon,
-} from "./ui/Icons.jsx";
 
 export default function SessionSummaryModal({ summary, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
@@ -139,7 +129,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
             <ul className="feedback-chip-list">
               {summary.formIssues.map((issue, idx) => (
                 <li key={idx} className={`feedback-chip severity-${issue.severity}`}>
-                  <AlertCircleIcon size={14} />
                   <span>Rep {issue.repNumber}: {issue.issueType}</span>
                 </li>
               ))}
@@ -147,7 +136,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
           </div>
         ) : (
           <div className="feedback-clean-card">
-            <CheckIcon size={16} />
             <span>Flawless set! Depth and posture met every kinematic target.</span>
           </div>
         )}
@@ -157,7 +145,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
           <div className="ai-coaching-header">
             <div className="ai-coaching-title-wrap">
               <div className="ai-badge-icon">
-                <SparklesIcon size={18} />
               </div>
               <div>
                 <h3 className="ai-coaching-title">AI Biomechanics Coach</h3>
@@ -185,7 +172,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
 
           {coachingError && (
             <div className="ai-coaching-error" data-testid="ai-coaching-error">
-              <AlertCircleIcon size={16} />
               <span>{coachingError}</span>
             </div>
           )}
@@ -206,7 +192,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
                     {coaching.recommendations.map((rec, idx) => (
                       <li key={idx} className="coaching-rec-item">
                         <div className="rec-bullet-icon">
-                          <CheckIcon size={14} />
                         </div>
                         <span className="rec-text">{rec}</span>
                       </li>
@@ -219,7 +204,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
               {coaching.next_session_goal && (
                 <div className="coaching-goal-card" data-testid="coaching-goal">
                   <div className="goal-icon">
-                    <TargetIcon size={18} />
                   </div>
                   <div className="goal-info">
                     <span className="goal-label">Next Session Target</span>
@@ -237,12 +221,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
                     onClick={() => setShowSources(!showSources)}
                     data-testid="btn-toggle-sources"
                   >
-                    <BookOpenIcon size={15} />
                     <span>Approved Guidance References ({coaching.retrieved_guidance.length})</span>
-                    <ChevronDownIcon
-                      size={15}
-                      className={`chevron-icon ${showSources ? "open" : ""}`}
-                    />
                   </button>
 
                   {showSources && (
@@ -267,7 +246,6 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
               {/* Safety & Medical Disclaimer Note */}
               {coaching.safety_note && (
                 <div className="coaching-safety-banner" data-testid="coaching-safety">
-                  <AlertCircleIcon size={14} />
                   <span>{coaching.safety_note}</span>
                 </div>
               )}

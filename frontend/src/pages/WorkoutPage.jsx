@@ -1,7 +1,6 @@
 // Dedicated Rep & Set Counting Page with set progress tracker and workout timers.
 import { useState } from "react";
 import CameraView from "@/components/CameraView.jsx";
-import { ActivityIcon, ClockIcon, CheckCircleIcon } from "@/components/ui/Icons.jsx";
 
 export default function WorkoutPage() {
   const [currentSet, setCurrentSet] = useState(1);
@@ -36,7 +35,6 @@ export default function WorkoutPage() {
       <div className="section-header-wrap" style={{ marginBottom: "1.25rem" }}>
         <div>
           <h2 className="section-title">
-            <ActivityIcon size={22} style={{ color: "var(--red-primary)" }} />
             <span>Rep & Set Counting Lab</span>
           </h2>
           <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
@@ -50,7 +48,6 @@ export default function WorkoutPage() {
       <div className="set-tracker-board">
         <div className="set-tracker-header">
           <div className="set-tracker-title">
-            <ActivityIcon size={20} style={{ color: "var(--red-primary)" }} />
             <strong>Squat Set Progress</strong>
           </div>
           <div className="set-target-pills">
