@@ -1,344 +1,136 @@
 # FormGuard AI
 
-FormGuard AI is a real-time squat-form analysis and biomechanics coaching system. It uses a browser camera and MediaPipe Pose Landmarker to track body landmarks, calculate joint angles, detect squat repetitions, evaluate form, and provide corrective feedback.
+FormGuard AI is a real-time squat-form analysis and biomechanics coaching system. It uses an in-browser camera feed and MediaPipe Pose Landmarker to track 33 body landmarks, calculate joint angles, detect repetitions, evaluate technique, and provide corrective coaching cues.
 
-The project is designed as an exercise-assistance tool. It is not a medical device and does not diagnose injuries or replace a qualified coach or healthcare professional.
+> **Disclaimer:** FormGuard AI is an exercise-assistance tool, not a medical device. It does not diagnose injuries or replace a qualified coach or healthcare professional.
 
-## Project Goals
+---
 
-The system is designed to:
-
-- Detect a user’s body landmarks from webcam video.
-- Calculate squat-related joint angles.
-- Reduce landmark noise through temporal smoothing.
-- Verify that the user is performing a squat-like movement.
-- Count completed squat repetitions.
-- Evaluate depth, torso position, and movement metrics.
-- Display real-time feedback while the user exercises.
-- Store structured workout summaries for later review.
-- Create a personal movement baseline through calibration.
-- Provide retrieval-grounded AI coaching with a deterministic fallback.
-
-The current implementation focuses on squats. Deadlift and bench-press analysis are future extensions.
-
-## Architecture
+## Key Features & Architecture
 
 ```text
-Webcam
+Webcam Frame
   ↓
-MediaPipe Pose Landmarker
+MediaPipe Pose Landmarker (33 landmarks)
   ↓
-33 body landmarks
+EMA Landmark Smoothing & Angle Calculation
   ↓
-Angle calculation and smoothing
+Squat State Machine (Repetition Detection)
   ↓
-Squat state machine
+Form Rule & Metrics Evaluation (Depth, Torso, Tempo)
   ↓
-Repetition and form analysis
+Live Feedback HUD & Session Summary
   ↓
-Live feedback and session summary
+FastAPI Backend & SQLite Storage
   ↓
-FastAPI backend and SQLite database
-  ↓
-Dashboard, calibration, and AI coaching
+User Calibration Baseline & RAG AI Coaching
 ```
 
-The computer-vision analysis runs in the browser. The backend receives structured numerical results such as repetitions, durations, scores, metrics, and issue codes. Webcam video and image frames are not uploaded or stored by the backend.
+- **Client-Side Privacy:** Computer-vision analysis runs entirely in the browser. Only structured numerical metrics (reps, durations, angles, scores) are sent to the backend. Video frames never leave the device.
+- **Noise Reduction:** Temporal Exponential Moving Average (EMA) smoothing filters raw landmark jitter before angles are computed.
+- **Hysteresis Rep Counting:** State machine (`STANDING → DESCENDING → BOTTOM → ASCENDING → STANDING`) prevents premature, double, or incomplete rep counts.
+- **Personalized Baseline:** Extracts user-specific limb proportions (femur-to-torso, shin-to-torso) to tailor feedback beyond fixed universal thresholds.
+- **Grounded AI Coaching:** Biomechanics guidance retrieved via an in-memory TF-IDF index over an authoritative knowledge base, fed to Gemini (with a deterministic rule-based fallback).
+
+---
 
 ## Main Components
 
-### Frontend
+### Frontend (React + Vite)
+- In-browser camera capture via `getUserMedia` and MediaPipe Tasks Vision.
+- 2D joint-angle calculations (hip, knee, ankle, torso lean).
+- Repetition state machine and form metrics engine (duration, ROM, descent/ascent tempo ratio).
+- Real-time canvas skeleton HUD and debounced feedback cues.
+- Calibration wizard and workout analytics dashboard.
 
-The frontend is a React and Vite application.
+### Backend (FastAPI + SQLite + SQLAlchemy)
+- Google OAuth token verification and JWT session management.
+- User-isolated workout sessions, reps, and form issues persistence.
+- Server-side form score verification and summary aggregations.
+- Personal calibration storage and retrieval-augmented coaching service (`POST /api/coaching/analyze`).
 
-It contains:
+### Shared Configuration (`shared/exercise-config/`)
+- Centralized definitions for landmark indexes, squat thresholds, cue strings, and scoring weights ensuring frontend and backend consistency.
 
-- Camera capture using the browser `getUserMedia` API.
-- MediaPipe Pose Landmarker integration.
-- 2D joint-angle calculations.
-- Landmark smoothing and visibility handling.
-- Squat repetition state machine.
-- Depth, torso, knee, and tempo analysis.
-- Canvas-based skeleton and feedback rendering.
-- Calibration workflow.
-- Workout history and dashboard views.
-- API clients for authentication, sessions, calibration, dashboard data, and coaching.
+---
 
-### Backend
+## Repetition & Form Analysis
 
-The backend uses FastAPI, SQLAlchemy, SQLite, and Pydantic.
-
-It is responsible for:
-
-- API routing and request validation.
-- Google OAuth verification and JWT sessions.
-- User-specific data isolation.
-- Workout-session persistence.
-- Repetition and form-issue persistence.
-- Server-side form-score verification.
-- Dashboard summaries and trends.
-- Personal calibration storage.
-- RAG-based coaching and deterministic fallback coaching.
-
-### Shared Configuration
-
-The `shared/exercise-config` directory contains squat-specific definitions shared by the analysis system, including:
-
-- Landmark indexes.
-- Rule identifiers.
-- Squat thresholds.
-- Feedback cues.
-- Score weights.
-- Shared data-shape documentation.
-
-Keeping these values centralized reduces disagreement between the frontend analysis and backend validation.
-
-## Squat Analysis Pipeline
-
-Each camera frame follows this process:
-
-```text
-Camera frame
-  ↓
-Pose landmarks
-  ↓
-Visibility checks
-  ↓
-EMA landmark smoothing
-  ↓
-Joint-angle calculation
-  ↓
-Exercise verification
-  ↓
-Squat state transition
-  ↓
-Rep completion
-  ↓
-Form rules and metrics
-  ↓
-Feedback selection
-```
-
-The repetition detector uses a state machine:
+A repetition follows a strict finite state machine:
 
 ```text
 STANDING → DESCENDING → BOTTOM → ASCENDING → STANDING
 ```
 
-A repetition is committed only after the user returns to the standing state. This prevents incomplete movements from being counted as completed repetitions.
+- **Repetition Commitment:** Only committed when returning fully to the standing state (`knee_angle > up_threshold`).
+- **Rep Metrics:** Computes duration, Range of Motion (ROM = peak angle − min angle), and tempo (`descent_duration / ascent_duration`).
+- **Feedback Selector:** Prioritizes failed rules by severity (high > medium > low) and debounces cues for 1.5s to prevent visual flickering.
 
-Repetition detection and form evaluation are separate. A shallow squat may count as a completed movement while still receiving a depth warning.
-
-## Metrics
-
-For each completed repetition, the system can store:
-
-- Rep number.
-- Rep duration.
-- Range of motion.
-- Tempo ratio.
-- Minimum and peak knee angles.
-- Torso-angle measurements.
-- Detected form issues.
-
-Tempo is calculated as the descent duration divided by the ascent duration:
-
-```text
-tempo = descent duration / ascent duration
-```
+---
 
 ## Backend Data Model
 
-The backend stores structured records instead of video.
-
 ```text
-User
-├── id
-├── username
-├── email
-├── display_name
-└── created_at
-
-Session
-├── id
-├── user_id
-├── exercise
-├── started_at
-├── ended_at
-├── duration_seconds
-├── rep_count
-├── form_score
-└── created_at
-
-Rep
-├── id
-├── session_id
-├── rep_number
-├── duration_seconds
-├── rom_value
-├── tempo
-└── angle_metrics
-
-FormIssue
-├── id
-├── session_id
-├── rep_number
-├── issue_type
-└── severity
+User ──── 1:N ──── Session ──── 1:N ──── Rep
+                     │
+                     └──────── 1:N ──── FormIssue
 ```
 
-The database relationships are:
+- **User:** Authentication identity and profile metadata.
+- **Session:** Exercise type, start/end timestamps, rep count, verified form score.
+- **Rep:** Rep number, duration, ROM, tempo ratio, and minimum/peak angles.
+- **FormIssue:** Issue code (e.g. `depth`, `torso_lean`), severity, and associated rep.
+- **UserBaseline:** Personal limb ratios and angle statistics from calibration.
 
-```text
-User 1 ──── many Session
-Session 1 ──── many Rep
-Session 1 ──── many FormIssue
-```
+---
 
-The backend validates relationships such as matching repetition counts, sequential repetition numbers, valid timestamps, and issues that refer to existing repetitions.
+## Personal Calibration & RAG Coaching
 
-## Personal Calibration
+1. **Calibration:** Records femur-to-torso, shin-to-torso ratios, and baseline ROM to detect fatigue and technique breakdown.
+2. **Retrieval-Augmented Generation (RAG):**
+   - The knowledge base (`backend/app/knowledge/knowledge_base.json`) contains curated biomechanics guidance across core movement domains.
+   - An in-memory TF-IDF cosine-similarity retriever extracts relevant guidance matching the user's specific form issues.
+   - The LLM receives the retrieved guidance and personal baseline to produce targeted, safe recommendations (maximum 3, strict non-medical guardrails).
+   - If offline or unconfigured, deterministic rule-based coaching serves as an immediate fallback.
 
-Calibration creates a user-specific movement baseline. It can include:
-
-- Femur-to-torso ratio.
-- Shin-to-torso ratio.
-- Standing and bottom knee angles.
-- Range-of-motion statistics.
-- Typical torso lean.
-- Angle means and standard deviations.
-
-Future measurements can be compared with this baseline instead of relying only on one universal threshold. The baseline is also supplied to the coaching service for personalized explanations.
-
-## RAG Coaching
-
-The coaching system uses retrieval-augmented generation:
-
-```text
-Detected squat issue
-  ↓
-Query construction
-  ↓
-TF-IDF retrieval from approved guidance
-  ↓
-Personal baseline and session metrics
-  ↓
-Gemini coaching or deterministic fallback
-```
-
-The knowledge base is stored in:
-
-```text
-backend/app/knowledge/knowledge_base.json
-```
-
-The retriever builds a local TF-IDF index in memory and ranks relevant passages using cosine similarity. No external vector database is required for the current small knowledge base.
-
-Coaching responses are constrained to:
-
-- Approved retrieved guidance.
-- A maximum of three recommendations.
-- No medical diagnosis.
-- No invented measurements.
-- A safety disclaimer.
-
-If Gemini is unavailable or no API key is configured, deterministic coaching rules provide an offline fallback.
+---
 
 ## Project Structure
 
 ```text
-frontend/                 React UI, camera, pose analysis, dashboard
-backend/                  FastAPI API, database, authentication, coaching
-shared/exercise-config/   Shared exercise rules and landmark definitions
-data/                     Video sources and project data
-journals/                 Development journals
+frontend/                 # React application, camera pipeline, HUD, dashboard
+backend/                  # FastAPI service, database models, coaching RAG
+shared/exercise-config/   # Centralized squat rules, thresholds, and cues
+data/                     # Video sources and project assets
+journals/                 # Team weekly development journals
 ```
 
-Important backend areas:
+---
 
-```text
-backend/app/models.py       SQLAlchemy database models
-backend/app/schemas.py      Pydantic request and response schemas
-backend/app/database.py     SQLite and SQLAlchemy setup
-backend/app/routers/        API route modules
-backend/app/services/       Validation, scoring, aggregation, coaching
-backend/app/knowledge/      Knowledge base and TF-IDF retriever
-```
+## Setup & Execution
 
-## Setup
-
-Install frontend dependencies:
-
+### 1. Frontend
 ```bash
 npm install
+npm --workspace frontend run dev
 ```
+Accessible at: **http://localhost:5173**
 
-Set up the backend:
-
+### 2. Backend
 ```bash
 cd backend
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-cd ..
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
+Interactive API Docs: **http://127.0.0.1:8000/docs**
 
-Create the required environment files from the available examples and configure Google OAuth and backend secrets before using authentication in production.
-
-## Run Locally
-
-Start the backend:
-
-```bash
-cd backend
-.venv/bin/uvicorn app.main:app --reload --port 8000
-```
-
-Start the frontend in another terminal:
-
-```bash
-npm --workspace frontend run dev
-```
-
-Open the application at:
-
-```text
-http://localhost:5173
-```
-
-Open the FastAPI documentation at:
-
-```text
-http://localhost:8000/docs
-```
-
-## Testing
-
-Run frontend unit tests:
-
-```bash
-npm --workspace frontend test -- --run
-```
-
-Run browser end-to-end tests:
-
-```bash
-npm --workspace frontend run e2e
-```
-
-Run backend tests:
-
-```bash
-backend/.venv/bin/pytest backend/app/tests
-```
-
-The test strategy covers geometry, smoothing, replay fixtures, repetition detection, form rules, calibration, backend routes, database ownership, coaching, and browser behavior.
+---
 
 ## Limitations
 
-- The current analysis is primarily designed for a side-view camera.
-- Camera placement and body visibility affect accuracy.
-- The primary movement calculations use 2D landmark geometry.
-- Calibration requires enough visible movement data.
-- The RAG knowledge base is curated and relatively small.
-- AI coaching is educational feedback, not medical advice.
-- Deadlift and bench-press analysis are not implemented yet.
+- Optimized for a side-view camera angle with clear full-body visibility.
+- Movement analysis currently computes 2D projection geometry.
+- AI coaching provides educational feedback and does not replace medical advice.
+- Squats are currently implemented; deadlift and bench press are planned extensions.

@@ -61,6 +61,5 @@ frontend/e2e/
 
 !journals/
 !journals/**
-!journal/
-!journal/**
+
 
