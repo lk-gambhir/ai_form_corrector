@@ -24,8 +24,8 @@ data/videos/*
 .env
 backend/.env
 
-# large model asset (documented download step in README, not committed)
-frontend/public/models/*.task
+# model assets
+!frontend/public/models/*.task
 
 # editor / os
 .DS_Store
@@ -54,7 +54,6 @@ model_capabilities.yaml
 *.md
 !README.md
 memory/
-start.sh
 backend/app/tests/
 frontend/src/__tests__/
 frontend/e2e/
