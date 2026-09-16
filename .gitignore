@@ -52,9 +52,15 @@ model_capabilities.yaml
 
 # Excluded documentation and test directories
 *.md
-journals/
+!README.md
 memory/
 start.sh
 backend/app/tests/
 frontend/src/__tests__/
 frontend/e2e/
+
+!journals/
+!journals/**
+!journal/
+!journal/**
+
