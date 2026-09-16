@@ -70,6 +70,12 @@
   font-weight: 600;
 }
 
+.target-pill:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .set-nodes-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));

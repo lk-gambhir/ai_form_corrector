@@ -256,7 +256,7 @@ export default function CameraView() {
             onClick={handleStartSet}
             data-testid="btn-start-set"
           >
-            <span>Start Squat Set</span>
+            <span>Start Workout</span>
           </button>
         ) : (
           <button
@@ -265,7 +265,7 @@ export default function CameraView() {
             onClick={handleEndSet}
             data-testid="btn-end-set"
           >
-            <span>End Set ({analysis.repCount} reps)</span>
+            <span>End Workout ({analysis.repCount} reps)</span>
           </button>
         )}
       </div>

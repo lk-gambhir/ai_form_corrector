@@ -76,34 +76,6 @@ export default function LoginPage() {
           )}
           <span className="oauth-hint">Secured by Google Identity | Zero telemetry video</span>
         </div>
-
-        <div className="login-highlights-grid">
-          <div className="highlight-item">
-            <div className="highlight-text">
-              <strong>100% Private</strong>
-              <span>No video leaves your device</span>
-            </div>
-          </div>
-
-          <div className="highlight-item">
-            <div className="highlight-text">
-              <strong>Personal Baseline</strong>
-              <span>Calibrated to your limb ratios</span>
-            </div>
-          </div>
-
-          <div className="highlight-item">
-            <div className="highlight-text">
-              <strong>Instant HUD Feedback</strong>
-              <span>Live rep counts & depth cues</span>
-            </div>
-          </div>
-        </div>
-
-        <p className="disclaimer login-disclaimer" data-testid="disclaimer">
-          Not a medical device. For general fitness feedback only — not a
-          substitute for professional coaching or medical advice.
-        </p>
       </div>
     </div>
   );
