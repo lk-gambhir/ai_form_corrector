@@ -1,7 +1,7 @@
 # 03: Incomplete and Duplicate Squat Repetitions
 
 **Author:** Divjot Singh  
-**Roll No.:** 1024031026  
+**Roll No.:** 1024031028  
 **Module:** Squat Repetition State Machine  
 
 ## Error:

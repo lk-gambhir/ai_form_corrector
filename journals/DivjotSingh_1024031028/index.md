@@ -1,6 +1,6 @@
 # Divjot’s Journal
 
-Roll No. 1024031026  
+Roll No. 1024031028  
 Name: Divjot Singh  
 
 + [03 : Incomplete and Duplicate Squat Repetitions](./JOURNAL_03_REPETITION_DETECTION.md)
