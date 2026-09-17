@@ -1,6 +1,6 @@
 # Lakshay’s Journal
 
-Roll No. 102401026  
+Roll No. 1024031026  
 Name: Lakshay Gambhir  
 
 + [01 : Browser Pose Estimation and Camera Initialization](./JOURNAL_01_POSE_ESTIMATION.md)
