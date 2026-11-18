@@ -27,7 +27,7 @@ def get_optional_user(
 
 
 @router.post("/analyze", response_model=CoachingAnalyzeResponse)
-def analyze_workout(
+async def analyze_workout(
     payload: CoachingAnalyzeRequest,
     request: Request,
     current_user: User | None = Depends(get_optional_user),
@@ -60,4 +60,4 @@ def analyze_workout(
                 confidence=0.95,
             )
 
-    return analyze_session_coaching(payload)
+    return await analyze_session_coaching(payload)

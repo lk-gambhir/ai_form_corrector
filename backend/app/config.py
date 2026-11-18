@@ -43,7 +43,14 @@ class Settings(BaseSettings):
 
     # AI Coaching / LLM settings
     gemini_api_key: str = ""
-    coaching_model: str = "gemini-2.5-flash"
+    coaching_models: list[str] = [
+        "gemini-4-hydrogen",
+        "gemini-3.8-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash",
+    ]
+    coaching_model: str = "gemini-4-hydrogen"
 
     @model_validator(mode="after")
     def validate_production_secret(self):

@@ -7,6 +7,7 @@ Supports LLM generation when configured with seamless deterministic fallback.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -275,14 +276,12 @@ def _format_deterministic_coaching(
     )
 
 
-def _call_gemini_llm(
+async def _call_single_model(
+    client: httpx.AsyncClient,
+    model: str,
     prompt: str,
     api_key: str,
-    model: str = "gemini-2.5-flash",
-) -> Any:
-    """Calls Gemini REST API with structured JSON output schema."""
-    # The key goes in a header, not the URL, so it never appears in URLs that
-    # proxies or HTTP client logs may record.
+) -> tuple[str, dict[str, Any] | None]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     payload = {
@@ -292,22 +291,49 @@ def _call_gemini_llm(
             "temperature": 0.2,
         },
     }
-
     try:
-        with httpx.Client(timeout=httpx.Timeout(25.0, connect=10.0)) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            if resp.status_code != 200:
-                logger.warning("Gemini API error %d: %s", resp.status_code, resp.text[:300])
-                return None
-            data = resp.json()
-            candidates = data.get("candidates", [])
-            if not candidates:
-                return None
-            text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            return json.loads(text)
+        resp = await client.post(url, headers=headers, json=payload, timeout=httpx.Timeout(6.0, connect=3.0))
+        if resp.status_code != 200:
+            logger.info("Model %s returned status %d", model, resp.status_code)
+            return model, None
+        data = resp.json()
+        candidates = data.get("candidates", [])
+        if not candidates:
+            return model, None
+        text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        validated = _validate_llm_response(json.loads(text))
+        return model, validated
     except Exception as exc:
-        logger.warning("LLM request failed, falling back to deterministic: %s", exc)
-        return None
+        logger.debug("Model %s failed: %s", model, exc)
+        return model, None
+
+
+async def _race_gemini_models(
+    models: list[str],
+    prompt: str,
+    api_key: str,
+    deadline_seconds: float = 6.0,
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Races candidate models in parallel; returns the first valid response and cancels the rest."""
+    async with httpx.AsyncClient() as client:
+        tasks = [asyncio.create_task(_call_single_model(client, m, prompt, api_key)) for m in models]
+        try:
+            for fut in asyncio.as_completed(tasks, timeout=deadline_seconds):
+                try:
+                    model, result = await fut
+                    if result:
+                        for t in tasks:
+                            t.cancel()
+                        logger.info("Coaching model '%s' won the race", model)
+                        return model, result
+                except Exception:
+                    continue
+        except asyncio.TimeoutError:
+            logger.warning("All %d models timed out after %.1fs", len(models), deadline_seconds)
+        finally:
+            for t in tasks:
+                t.cancel()
+    return None, None
 
 
 def _validate_llm_response(raw: Any) -> dict[str, Any] | None:
@@ -370,12 +396,13 @@ def _validate_llm_response(raw: Any) -> dict[str, Any] | None:
     }
 
 
-def analyze_session_coaching(
+async def analyze_session_coaching(
     request: CoachingAnalyzeRequest,
     retriever: BiomechanicsKnowledgeRetriever | None = None,
 ) -> CoachingAnalyzeResponse:
     """
     Main entrypoint: retrieves guidance and synthesizes schema-validated coaching advice.
+    Races candidate LLM models concurrently; falls back to deterministic guidance if all fail.
     """
     if retriever is None:
         retriever = get_retriever()
@@ -408,59 +435,60 @@ def analyze_session_coaching(
     # Step 2: Check for configured LLM
     settings = get_settings()
     api_key = settings.gemini_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    models = settings.coaching_models or [settings.coaching_model]
 
-    if api_key:
+    if api_key and models:
         guidance_text = "\n\n".join(
             f"[{p.source_id}] {p.title}:\n{p.passage}" for p in retrieved_items
         )
         baseline_data = request.personalized_baseline.model_dump() if request.personalized_baseline else None
         prompt = f"""
-You are an expert weightlifting biomechanics coach. You are evaluating structured workout metrics and personalized calibration baselines for a lifter.
+You are a professional strength and conditioning coach analyzing lifter telemetry.
+Provide a clear, objective assessment. Use accurate lifting and biomechanical terminology (such as hip hinge, torso angle, knee valgus, lockout, eccentric control, or depth threshold), but explain each term clearly so the guidance remains accessible and easy to follow.
 
 RULES:
-1. Explain measured results strictly grounded in the approved guidance below.
-2. DO NOT diagnose any injury. Conservative coaching only.
-3. DO NOT invent metrics or unsupported citations.
-4. Provide AT MOST 3 actionable recommendations.
-5. Emphasize safety and conservative progression.
+1. Maintain an objective, professional coaching tone—direct, concise, and constructive without being overly casual or overly familiar.
+2. Incorporate relevant technical terms accurately, pairing them with clear practical explanations.
+3. Ground all feedback strictly in the approved coaching guidance below.
+4. DO NOT diagnose injuries or make medical claims.
+5. DO NOT invent metrics or unsupported numbers.
+6. Provide 1 to 3 specific, actionable technical cues for the next session.
 
-RETRIEVED APPROVED GUIDANCE:
+APPROVED COACHING GUIDANCE:
 {guidance_text}
 
-SESSION SUMMARY DATA:
+WORKOUT RESULTS:
 - Exercise: {request.exercise}
 - Form Score: {request.form_score} / 100
 - Rep Count: {request.rep_count}
-- Issues Detected: {issue_dicts}
-- Metrics: {metrics_dict}
+- Flaws Detected: {issue_dicts}
+- Measurements: {metrics_dict}
 - Personalized Baseline: {baseline_data}
 - Goal: {request.user_goal or f"Improve {request.exercise.replace('_', ' ')} technique"}
 
 Return a JSON object conforming precisely to:
 {{
-  "summary": "Concise 1-sentence summary of the set",
-  "primary_issue": "primary issue name or null if clean",
-  "explanation": "2-3 sentences explaining the biomechanics and relating to the user's baseline",
-  "recommendations": ["Recommendation 1", "Recommendation 2", "Recommendation 3"],
-  "next_session_goal": "Clear, measurable target for the next workout",
+  "summary": "Concise, professional 1-sentence technical assessment of the set",
+  "primary_issue": "primary issue name from the detected list or null if clean",
+  "explanation": "2-3 sentences explaining the measured biomechanics and technical breakdown in clear, understandable terms",
+  "recommendations": ["Technical cue 1", "Technical cue 2", "Technical cue 3"],
+  "next_session_goal": "A precise, measurable technical focus for the next session",
   "safety_note": "{SAFETY_DISCLAIMER}"
 }}
 """
-        llm_result = _call_gemini_llm(prompt, api_key, settings.coaching_model)
+        winning_model, llm_result = await _race_gemini_models(models, prompt, api_key)
         if llm_result:
-            validated = _validate_llm_response(llm_result)
-            if validated:
-                try:
-                    return CoachingAnalyzeResponse(
-                        **validated,
-                        retrieved_guidance=retrieved_items,
-                        source="llm",
-                        model=settings.coaching_model,
-                    )
-                except Exception as exc:
-                    logger.warning("LLM response schema validation failed: %s, falling back", exc)
-            else:
-                logger.warning("LLM response failed validation checks, falling back to deterministic")
+            try:
+                return CoachingAnalyzeResponse(
+                    **llm_result,
+                    retrieved_guidance=retrieved_items,
+                    source="llm",
+                    model=winning_model,
+                )
+            except Exception as exc:
+                logger.warning("LLM response schema validation failed: %s, falling back", exc)
+        else:
+            logger.warning("All raced models failed or timed out, falling back to deterministic")
 
     # Step 3: Fallback to deterministic grounded generator
     return _format_deterministic_coaching(request, retrieved_items, passages)
