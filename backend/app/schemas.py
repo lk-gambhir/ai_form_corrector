@@ -40,7 +40,7 @@ Decisions made where types.js was ambiguous for the wire/DB shape:
     selected exercise's server-side catalog in `exercises/<id>/backend/`.
     This keeps the wire shape extensible while rejecting cross-exercise rules.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from typing import Literal
 
@@ -124,6 +124,13 @@ class SessionCreateRequest(BaseModel):
     form_score: float = Field(ge=0, le=100)
     reps: list[RepMetricsIn] = Field(default_factory=list)
     form_issues: list[IssueRecordIn] = Field(default_factory=list)
+
+    @field_validator("started_at", "ended_at")
+    @classmethod
+    def assume_utc_when_naive(cls, v: datetime) -> datetime:
+        # Mixing a naive and an aware timestamp made the started/ended
+        # comparison raise TypeError (HTTP 500). Treat naive values as UTC.
+        return v if v.tzinfo is not None else v.replace(tzinfo=timezone.utc)
 
 
 class SessionResponse(BaseModel):

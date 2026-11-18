@@ -64,7 +64,9 @@ class BiomechanicsKnowledgeRetriever:
             # Aggregate searchable text with weighted keywords & title
             full_text = f"{doc.get('title', '')} " * 2
             full_text += f"{doc.get('topic', '')} " * 3
-            full_text += " ".join(doc.get("keywords", [])) * 4 + " "
+            # Repeat the keyword list (not the joined string) so keywords stay
+            # separate tokens; "a b" * 4 would glue "b" and "a" into "ba".
+            full_text += " ".join(doc.get("keywords", []) * 4) + " "
             full_text += doc.get("content", "") + " "
             full_text += " ".join(doc.get("recommendations", []))
 

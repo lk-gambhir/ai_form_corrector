@@ -4,6 +4,7 @@ import { CalibrationEngine } from "@/analysis/CalibrationEngine.js";
 import { saveBaseline, getBaseline } from "@/api/calibrationApi.js";
 import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
+import { toSquareUnits } from "@/pose/angles.js";
 import { POSE_LANDMARKS } from "@shared/exercise-config/landmarks.js";
 
 function hasCalibrationLandmarks(landmarks, exercise) {
@@ -24,6 +25,7 @@ export default function CalibrationView() {
   const [status, setStatus] = useState(null);
   const [savedStatus, setSavedStatus] = useState(null);
   const [isTracking, setIsTracking] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -56,10 +58,25 @@ export default function CalibrationView() {
     let cancelled = false;
 
     async function initCamera() {
-      if (!navigator.mediaDevices?.getUserMedia) return;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError("This browser cannot access a camera.");
+        return;
+      }
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch (err) {
+        if (cancelled) return;
+        setCameraError(
+          err?.name === "NotFoundError" || err?.name === "DevicesNotFoundError"
+            ? "No camera was found. Connect a camera and reload the page."
+            : "Camera access was blocked. Allow camera access for this site and reload the page."
+        );
+        return;
+      }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
@@ -79,7 +96,10 @@ export default function CalibrationView() {
         estimatorRef.current = estimator;
 
         runDetectionLoop();
-      } catch (_) {}
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setCameraError("The pose model could not be loaded. Check your connection and reload the page.");
+      }
     }
 
     function runDetectionLoop() {
@@ -104,7 +124,12 @@ export default function CalibrationView() {
 
           if (landmarks && landmarks.length > 28) {
             drawPose(ctx, landmarks, canvas.width, canvas.height);
-            recentLandmarksRef.current.push({ timestampMs: performance.now(), landmarks });
+            // Calibration measures angles and limb ratios, so store landmarks
+            // in undistorted units (drawing above uses the raw ones).
+            recentLandmarksRef.current.push({
+              timestampMs: performance.now(),
+              landmarks: toSquareUnits(landmarks, video.videoWidth / video.videoHeight),
+            });
             recentLandmarksRef.current = recentLandmarksRef.current.slice(-10);
             setIsTracking(true);
           } else {
@@ -257,16 +282,20 @@ export default function CalibrationView() {
         </div>
       )}
 
-      {/* Live camera feed with pose tracking */}
-      {step < 3 && (
-        <div className="calibration-camera-card">
-          <video ref={videoRef} playsInline muted className="calibration-video" />
-          <canvas ref={canvasRef} className="calibration-canvas" />
-          <div className="calibration-camera-badge">
-            <span>{isTracking ? "Live Pose Tracking Active" : "Position yourself in camera frame"}</span>
-          </div>
-        </div>
+      {cameraError && (
+        <p className="auth-error-banner" data-testid="calibration-camera-error">{cameraError}</p>
       )}
+
+      {/* Live camera feed with pose tracking. Kept mounted (only hidden) on
+          the review step: the detection loop holds this <video> element, so
+          unmounting it left "Recalibrate" with a blank camera. */}
+      <div className="calibration-camera-card" style={step < 3 ? undefined : { display: "none" }}>
+        <video ref={videoRef} playsInline muted className="calibration-video" />
+        <canvas ref={canvasRef} className="calibration-canvas" />
+        <div className="calibration-camera-badge">
+          <span>{isTracking ? "Live Pose Tracking Active" : "Position yourself in camera frame"}</span>
+        </div>
+      </div>
 
       <div className="calibration-step-card" data-testid="calibration-step">
         {step === 1 && (

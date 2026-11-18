@@ -1,46 +1,21 @@
-// Prioritizes and debounces coaching feedback cues.
+// Picks the coaching cue to show for a completed rep.
+//
+// It is called once per completed rep, and AnalysisPipeline keeps the cue on
+// screen for CUE_HOLD_MS. A wall-clock debounce here used to return the
+// previous rep's cue when a passing rep finished within 1.5 s of a failing
+// one, so each rep's cue now depends only on that rep's results.
 export class FeedbackSelector {
-  constructor(debounceMs = 1500) {
-    this.debounceMs = debounceMs;
-    this.lastCue = null;
-    this.lastSeverity = null;
-    this.lastUpdate = 0;
-  }
-
-  // Selects highest-priority cue honoring debounce duration.
+  // Returns the highest-priority failed rule's cue, or no cue if all passed.
   select(ruleResults) {
-    const now = Date.now();
-    const failedRules = ruleResults.filter((r) => !r.pass);
     const severityMap = { high: 3, medium: 2, low: 1 };
+    const failedRules = ruleResults.filter((r) => !r.pass);
     failedRules.sort((a, b) =>
       (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER)
-      || severityMap[b.severity] - severityMap[a.severity]
+      || (severityMap[b.severity] ?? 0) - (severityMap[a.severity] ?? 0)
     );
-
-    const highestPriority = failedRules[0];
-
-    if (!highestPriority) {
-      if (now - this.lastUpdate > this.debounceMs) {
-        this.lastCue = null;
-        this.lastSeverity = null;
-        return { activeCue: null, severity: null };
-      }
-      return { activeCue: this.lastCue, severity: this.lastSeverity };
-    }
-
-    if (highestPriority.cue === this.lastCue || now - this.lastUpdate > this.debounceMs) {
-      this.lastCue = highestPriority.cue;
-      this.lastSeverity = highestPriority.severity;
-      this.lastUpdate = now;
-    }
-
-    return { activeCue: this.lastCue, severity: this.lastSeverity };
+    const top = failedRules[0];
+    return top ? { activeCue: top.cue, severity: top.severity } : { activeCue: null, severity: null };
   }
 
-  // Resets debounced feedback state.
-  reset() {
-    this.lastCue = null;
-    this.lastSeverity = null;
-    this.lastUpdate = 0;
-  }
+  reset() {}
 }

@@ -1,6 +1,7 @@
 // Global authentication context supporting Google OAuth.
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import * as authApi from "@/api/authApi.js";
+import { AUTH_EXPIRED_EVENT } from "@/api/client.js";
 
 const AuthContext = createContext(null);
 
@@ -19,26 +20,34 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
 
-  // Sync session state and fetch user profile when token changes.
+  // Sync session state and check the token whenever it changes. The profile
+  // is fetched even when a cached user exists, so an expired token found on
+  // page load signs the user out instead of showing a logged-in app whose
+  // every request fails.
   useEffect(() => {
     if (token) {
       localStorage.setItem("token", token);
-      if (!user) {
-        authApi.getMe()
-          .then((profile) => {
-            setUser(profile);
-            localStorage.setItem("user", JSON.stringify(profile));
-          })
-          .catch(() => {
-            logout();
-          });
-      }
+      authApi.getMe()
+        .then((profile) => {
+          setUser(profile);
+          localStorage.setItem("user", JSON.stringify(profile));
+        })
+        .catch((err) => {
+          if (err?.status === 401) logout();
+        });
     } else {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       setUser(null);
     }
   }, [token]);
+
+  // Any API call that gets a 401 for our token signs the user out.
+  useEffect(() => {
+    const onExpired = () => logout();
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, []);
 
   // Authenticates athlete via Google OAuth using real user credentials.
   const loginWithGoogle = useCallback(async function loginWithGoogle(googleData = {}) {

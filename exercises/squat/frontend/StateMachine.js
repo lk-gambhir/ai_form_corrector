@@ -1,6 +1,9 @@
 // Config-driven rep-counting finite state machine for squats.
 import { LANDMARK_COUNT, POSE_LANDMARKS } from "../../../shared/exercise-config/landmarks.js";
-import { computeAngles, landmarkVisibleEnough } from "../../../frontend/src/pose/angles.js";
+import { bodyYawDeg, computeAngles, kneeAnkleRatio, landmarkVisibleEnough, torsoLeanDeg } from "../../../frontend/src/pose/angles.js";
+
+// Front view: how long the "standing hip height" reference is remembered.
+const STANDING_HEIGHT_WINDOW_MS = 10_000;
 
 // Checks if all points of an angle definition meet visibility threshold.
 function tripletVisible(landmarks, angleDef, visibilityThreshold) {
@@ -24,6 +27,12 @@ export class SquatStateMachine {
     this._down = downThresholdDeg;
     this._up = upThresholdDeg;
     this._minFrames = minFrames;
+
+    // Knee valgus (knee-to-ankle ratio) is only measurable from a front view.
+    const valgusRule = config.rules?.knee_valgus;
+    this._trackValgus = Boolean(valgusRule?.enabled);
+    this._maxYawDeg = valgusRule?.maxBodyYawDeg ?? 25;
+    this._hipHeights = [];
 
     this._byId = new Map(config.drivingAngles.map((def) => [def.id, def]));
     this._composites = config.compositeAngles ?? [];
@@ -52,10 +61,71 @@ export class SquatStateMachine {
     this._curMin = Infinity;
     this._curMinMs = null;
     this._curSeries = [];
+    this._curTorsoLeanMax = null;
+    this._curKasr = null;
+    this._curKasrKneeAngle = Infinity;
+  }
+
+  // Keeps the knee-to-ankle ratio from the deepest front-view frame of the
+  // rep - peak knee flexion, the instant used by Mizner et al. (2012).
+  _trackKneeAnkleRatio(landmarks, kneeAngle) {
+    if (!this._trackValgus || !(kneeAngle < this._curKasrKneeAngle)) return;
+    const ratio = kneeAnkleRatio(landmarks, this.visibilityThreshold, this._maxYawDeg);
+    if (Number.isFinite(ratio)) {
+      this._curKasr = ratio;
+      this._curKasrKneeAngle = kneeAngle;
+    }
+  }
+
+  // True when shoulders and hips are square enough to the camera for the
+  // front-view measures (knee-to-ankle ratio, hip-drop rep signal).
+  _isFrontView(landmarks) {
+    return this._trackValgus && bodyYawDeg(landmarks) <= this._maxYawDeg;
+  }
+
+  // Front-view rep signal. Facing the camera, the thigh points at the lens,
+  // so the 2D hip-knee-ankle angle stays near 180 deg even in a deep squat and
+  // reps would never be counted. Instead, estimate an equivalent knee angle
+  // from how far the hips have dropped: h = current hip height above the
+  // ankles / standing hip height (max over the last 10 s). Assuming equal
+  // thigh and shin length and a vertical shin, h = (1 + cos t) / 2 where t is
+  // the thigh's angle from vertical, and knee angle = 180 - t. So standing
+  // (h = 1) -> 180 deg and thighs parallel (h = 0.5) -> 90 deg.
+  // [heuristic] Geometric approximation, not from a source; validate on real
+  // front-view footage. Uses only vertical distances, so aspect ratio cancels.
+  _frontViewKneeAngle(landmarks, timestampMs) {
+    const names = ["LEFT_HIP", "RIGHT_HIP", "LEFT_ANKLE", "RIGHT_ANKLE"];
+    if (!names.every((n) => landmarkVisibleEnough(landmarks[POSE_LANDMARKS[n]], this.visibilityThreshold))) return NaN;
+    const y = (n) => landmarks[POSE_LANDMARKS[n]].y;
+    const height = (y("LEFT_ANKLE") + y("RIGHT_ANKLE")) / 2 - (y("LEFT_HIP") + y("RIGHT_HIP")) / 2;
+    if (!(height > 0)) return NaN;
+    this._hipHeights.push({ t: timestampMs, height });
+    while (this._hipHeights.length && this._hipHeights[0].t < timestampMs - STANDING_HEIGHT_WINDOW_MS) {
+      this._hipHeights.shift();
+    }
+    const standing = Math.max(...this._hipHeights.map((h) => h.height));
+    const h = Math.min(1, height / standing);
+    const thighFromVertical = Math.acos(Math.max(-1, Math.min(1, 2 * h - 1)));
+    return 180 - (thighFromVertical * 180) / Math.PI;
+  }
+
+  // Records the torso lean of an in-rep frame (ignored when not visible).
+  // Forward lean happens in the sagittal plane, so it cannot be seen from the
+  // front: front-view frames are skipped and lean is reported as not measured.
+  _trackTorsoLean(landmarks) {
+    if (this._isFrontView(landmarks)) return;
+    const lean = torsoLeanDeg(landmarks, this.visibilityThreshold);
+    if (Number.isFinite(lean) && (this._curTorsoLeanMax == null || lean > this._curTorsoLeanMax)) {
+      this._curTorsoLeanMax = lean;
+    }
   }
 
   // Resolves the composite driving angle for the current frame.
-  _resolveSignal(landmarks) {
+  _resolveSignal(landmarks, timestampMs) {
+    if (this._isFrontView(landmarks)) {
+      const frontAngle = this._frontViewKneeAngle(landmarks, timestampMs);
+      if (Number.isFinite(frontAngle)) return frontAngle;
+    }
     const composite = this._composites.find((c) => c.id === this._signal);
 
     if (!composite) {
@@ -108,7 +178,7 @@ export class SquatStateMachine {
     }
 
     const angle = Array.isArray(landmarks) && landmarks.length >= LANDMARK_COUNT
-      ? this._resolveSignal(landmarks)
+      ? this._resolveSignal(landmarks, timestampMs)
       : Number.NaN;
     if (!Number.isFinite(angle)) {
       this._pendingTarget = null;
@@ -125,6 +195,8 @@ export class SquatStateMachine {
     // Track frame samples into active rep.
     if (this.state !== this._startState) {
       this._curSeries.push({ t: timestampMs, angle });
+      this._trackTorsoLean(landmarks);
+      this._trackKneeAnkleRatio(landmarks, angle);
       if (angle < this._curMin) {
         this._curMin = angle;
         this._curMinMs = timestampMs;
@@ -162,6 +234,11 @@ export class SquatStateMachine {
       this._curMin = angle;
       this._curMinMs = timestampMs;
       this._curSeries = [{ t: timestampMs, angle }];
+      this._curTorsoLeanMax = null;
+      this._curKasr = null;
+      this._curKasrKneeAngle = Infinity;
+      this._trackTorsoLean(landmarks);
+      this._trackKneeAnkleRatio(landmarks, angle);
       return;
     }
 
@@ -176,6 +253,14 @@ export class SquatStateMachine {
           bottomMs: this._curMinMs,
           minAngleDeg: this._curMin,
           peakAngleDeg: seriesValues.length ? Math.max(...seriesValues) : angle,
+          torsoLeanMax: this._curTorsoLeanMax,
+          // Present only when a front-view frame was available in this rep.
+          // Each key is present only when that measure was possible in this
+          // rep (front view for the ratio, non-front view for torso lean).
+          angleMetrics: {
+            ...(Number.isFinite(this._curKasr) ? { kneeAnkleRatio: Number(this._curKasr.toFixed(3)) } : {}),
+            ...(Number.isFinite(this._curTorsoLeanMax) ? { torsoLeanMaxDeg: Number(this._curTorsoLeanMax.toFixed(1)) } : {}),
+          },
           series: { [this._signal]: seriesValues },
         });
       }
@@ -212,6 +297,7 @@ export class SquatStateMachine {
     this._transitionLog = [];
     this._reps = [];
     this._invalidSinceMs = null;
+    this._hipHeights = [];
     this._resetInProgressRep();
   }
 }

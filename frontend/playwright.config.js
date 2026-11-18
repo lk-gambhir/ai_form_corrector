@@ -9,7 +9,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "cd ../backend && APP_ENVIRONMENT=test .venv/bin/uvicorn app.main:app --port 8000",
+      command: "cd ../backend && APP_ENVIRONMENT=test APP_ALLOW_INSECURE_TEST_TOKENS=true PYTHONPATH=.. .venv/bin/uvicorn app.main:app --port 8000",
       url: "http://localhost:8000/api/health",
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,

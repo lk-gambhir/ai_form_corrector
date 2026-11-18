@@ -11,6 +11,9 @@ function resolveAngle(landmarks, points, visibilityThreshold) {
   return Number.isFinite(angle) ? angle : null;
 }
 
+// How far back (ms) to look for the start-position frame before a rep starts.
+const READY_LOOKBACK_MS = 3000;
+
 /** Configured angle-cycle detector for a movement with a clear excursion and return. */
 export class ActivityStateMachine {
   constructor(config) {
@@ -31,6 +34,28 @@ export class ActivityStateMachine {
     this._resetRep();
   }
 
+  // Adds one frame's values to the in-progress rep's extremes and samples.
+  _includeSample(values) {
+    this._samples.push(values);
+    this._minSignal = Math.min(this._minSignal, values.signal);
+    this._maxSignal = Math.max(this._maxSignal, values.signal);
+    this._minAngle = Math.min(this._minAngle, values.angle);
+    this._maxAngle = Math.max(this._maxAngle, values.angle);
+    this._maxBodyLineDeviation = Math.max(this._maxBodyLineDeviation, values.metrics.maxBodyLineDeviationDeg ?? 0);
+  }
+
+  // The READY frame closest to the start position (deadlift: lowest hip
+  // angle = floor setup; push-up: highest elbow angle = top plank). The rep
+  // only starts once the signal has left that position, so without this the
+  // true setup/top angle would never be recorded.
+  _startPositionSample() {
+    let best = null;
+    for (const sample of this._readySamples) {
+      if (!best || (this.ascendingSignal ? sample.signal < best.signal : sample.signal > best.signal)) best = sample;
+    }
+    return best;
+  }
+
   _resetRep() {
     this._startMs = null;
     this._turnMs = null;
@@ -40,6 +65,7 @@ export class ActivityStateMachine {
     this._maxAngle = -Infinity;
     this._maxBodyLineDeviation = 0;
     this._samples = [];
+    this._readySamples = [];
     this._invalidSinceMs = null;
   }
 
@@ -83,6 +109,9 @@ export class ActivityStateMachine {
       this._maxAngle = -Infinity;
       this._maxBodyLineDeviation = 0;
       this._samples = [];
+      const startSample = this._startPositionSample();
+      if (startSample) this._includeSample(startSample);
+      this._readySamples = [];
     }
     if (next === "TURNAROUND") this._turnMs = timestampMs;
     return true;
@@ -93,6 +122,7 @@ export class ActivityStateMachine {
     const values = Array.isArray(landmarks) && landmarks.length >= LANDMARK_COUNT
       ? this._getAngles(landmarks)
       : null;
+    if (values) values.timestampMs = timestampMs;
     if (!values) {
       this._pendingState = null;
       this._pendingFrames = 0;
@@ -108,12 +138,11 @@ export class ActivityStateMachine {
     }
     this._invalidSinceMs = null;
     if (this.state !== "READY") {
-      this._samples.push(values);
-      this._minSignal = Math.min(this._minSignal, values.signal);
-      this._maxSignal = Math.max(this._maxSignal, values.signal);
-      this._minAngle = Math.min(this._minAngle, values.angle);
-      this._maxAngle = Math.max(this._maxAngle, values.angle);
-      this._maxBodyLineDeviation = Math.max(this._maxBodyLineDeviation, values.metrics.maxBodyLineDeviationDeg ?? 0);
+      this._includeSample(values);
+    } else {
+      this._readySamples.push(values);
+      const cutoff = timestampMs - READY_LOOKBACK_MS;
+      while (this._readySamples.length && this._readySamples[0].timestampMs < cutoff) this._readySamples.shift();
     }
 
     const { startThreshold, excursionThreshold, minAmplitudeDeg = 30 } = this.cycle;

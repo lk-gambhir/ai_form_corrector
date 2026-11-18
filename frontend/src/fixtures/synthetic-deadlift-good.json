@@ -3,8 +3,8 @@
   "description": "Conventional Deadlift: clean 2-rep demonstration with full upright lockout >= 165 deg and complete return to setup.",
   "license": "CC BY 4.0 / FormGuard Benchmark Suite",
   "fps": 30.0,
-  "width": 1280,
-  "height": 720,
+  "width": 1000,
+  "height": 1000,
   "frames": [
     {
       "t": 0.0,

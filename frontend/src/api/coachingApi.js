@@ -30,9 +30,11 @@ export function formatCoachingPayload(summary, baseline = null, userGoal = null)
   // Calculate average ROM and tempo
   let totalRom = 0;
   let totalTempo = 0;
+  let totalDuration = 0;
   for (const r of reps) {
     totalRom += Number(r.romValue ?? r.rom_value ?? 0);
     totalTempo += Number(r.tempo ?? 0);
+    totalDuration += Number(r.durationSeconds ?? r.duration_seconds ?? 0);
   }
   const avgRom = reps.length > 0 ? Number((totalRom / reps.length).toFixed(1)) : null;
   const avgTempo = reps.length > 0 ? Number((totalTempo / reps.length).toFixed(1)) : null;
@@ -64,7 +66,8 @@ export function formatCoachingPayload(summary, baseline = null, userGoal = null)
     metrics: {
       average_rom: avgRom,
       average_tempo: avgTempo,
-      duration_seconds: summary.durationSeconds ?? summary.duration_seconds ?? 0,
+      // Average rep duration (s); the squat tempo rule checks rep duration.
+      rep_duration: reps.length > 0 ? Number((totalDuration / reps.length).toFixed(2)) : null,
     },
     personalized_baseline: personalizedBaseline,
     user_goal: userGoal,

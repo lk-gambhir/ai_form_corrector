@@ -3,8 +3,8 @@
   "description": "Conventional Deadlift: 2 soft lockout repetitions reaching 150 deg hip extension (counted attempts, failed lockout rule).",
   "license": "CC BY 4.0 / FormGuard Benchmark Suite",
   "fps": 30.0,
-  "width": 1280,
-  "height": 720,
+  "width": 1000,
+  "height": 1000,
   "frames": [
     {
       "t": 0.0,

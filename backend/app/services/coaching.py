@@ -38,8 +38,10 @@ KNOWN_RULE_IDS = {
 }
 
 # Patterns that indicate unsafe medical claims an LLM should never make.
+# Word stems are matched with any suffix ("diagnos" -> diagnose, diagnosis,
+# diagnosed; "fractur" -> fracture, fractures, fractured; ...).
 _UNSAFE_PATTERNS = re.compile(
-    r"\b(diagnos|guarantee|cure[sd]?|torn ligament|fracture|surgery)\b",
+    r"\b(diagnos\w*|guarantee\w*|cure[sd]?|torn ligaments?|fractur\w*|surger(?:y|ies)|surgical\w*)",
     re.IGNORECASE,
 )
 
@@ -57,7 +59,6 @@ def _format_deterministic_coaching(
     form_score = round(request.form_score, 1)
     rep_count = request.rep_count
 
-    avg_tempo = request.metrics.average_tempo
     typical_lean = request.personalized_baseline.typical_torso_lean if request.personalized_baseline else None
     knee_bottom = request.personalized_baseline.knee_bottom_angle if request.personalized_baseline else None
     femur_torso = request.personalized_baseline.femur_to_torso if request.personalized_baseline else None
@@ -132,23 +133,29 @@ def _format_deterministic_coaching(
         issue_obj = next((i for i in issues if i.type == "knee_valgus"), None)
         count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
         explanation_parts.append(
-            f"Inward knee cave (dynamic valgus) occurred {count_str} during the ascent phase."
+            f"Your knees moved inward relative to your ankles (knee-to-ankle ratio below 0.9) {count_str} at the bottom of the squat."
         )
         explanation_parts.append(
-            "This suggests underactive glute medius stabilizers or foot arch collapse under load."
+            "A ratio of 1.0 means the knees are directly over the ankles; this was measured from a front-facing camera."
         )
 
     elif primary_issue == "tempo":
-        phases = "lift-to-return" if request.exercise == "deadlift" else "lowering-to-return"
+        issue_obj = next((i for i in issues if i.type == "tempo"), None)
+        count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
+        rep_duration = request.metrics.rep_duration
+        duration_str = f" (average rep: {round(rep_duration, 1)} s)" if rep_duration is not None else ""
         explanation_parts.append(
-            f"The {phases} tempo ratio was {round(avg_tempo, 1) if avg_tempo is not None else 'unavailable'}; "
-            "use a controlled tempo and pace that lets you maintain the intended movement pattern."
+            f"Rep duration fell outside the 0.5-12 second range {count_str}{duration_str}: "
+            "faster usually means bouncing out of the bottom, slower means stalling."
+        )
+        explanation_parts.append(
+            "Use a steady, controlled pace that lets you repeat the same movement on every rep."
         )
     elif primary_issue == "range_of_motion":
         issue_obj = next((i for i in issues if i.type == "range_of_motion"), None)
         count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
         explanation_parts.append(
-            f"Push-up depth was shallow {count_str}, reversing before upper arms reached parallel with the floor."
+            f"Push-up depth was shallow {count_str}, reversing before the elbows reached about 90° of flexion."
         )
         explanation_parts.append(
             "Lowering with controlled elbow flexion (~90°) ensures full chest and triceps engagement."
@@ -203,7 +210,7 @@ def _format_deterministic_coaching(
             recommendations = ["Keep your knees tracking consistently with your foot position through the repetition."]
         elif primary_issue == "range_of_motion":
             recommendations = [
-                "Lower until your upper arms reach parallel with the floor (approx. 90° elbow bend).",
+                "Lower until your elbows reach about 90° of flexion.",
                 "Practice chest-to-pad or incline push-ups to build comfortable full range of motion.",
             ]
         elif primary_issue == "body_alignment":
@@ -243,9 +250,9 @@ def _format_deterministic_coaching(
     elif primary_issue == "knee_valgus":
         next_session_goal = "Keep knees tracking directly in line with your second toe from bottom to top."
     elif primary_issue == "tempo":
-        next_session_goal = "Control each descent to a full 3-second count before driving up explosively."
+        next_session_goal = "Keep every rep between 0.5 and 12 seconds with a controlled descent and no pause-and-stall at the bottom."
     elif primary_issue == "range_of_motion":
-        next_session_goal = "Lower your chest until elbows reach a full 90° bend on every repetition."
+        next_session_goal = "Lower until your elbows reach about 90° of flexion on every repetition."
     elif primary_issue == "body_alignment":
         next_session_goal = "Keep shoulders, hips, and ankles in one rigid straight line without sagging."
     elif primary_issue == "lockout":
@@ -271,11 +278,13 @@ def _format_deterministic_coaching(
 def _call_gemini_llm(
     prompt: str,
     api_key: str,
-    model: str = "gemini-1.5-flash",
-) -> dict[str, Any] | None:
+    model: str = "gemini-2.5-flash",
+) -> Any:
     """Calls Gemini REST API with structured JSON output schema."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-    headers = {"Content-Type": "application/json"}
+    # The key goes in a header, not the URL, so it never appears in URLs that
+    # proxies or HTTP client logs may record.
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -288,7 +297,7 @@ def _call_gemini_llm(
         with httpx.Client(timeout=httpx.Timeout(25.0, connect=10.0)) as client:
             resp = client.post(url, headers=headers, json=payload)
             if resp.status_code != 200:
-                logger.warning("Gemini API error %d: %s", resp.status_code, resp.text)
+                logger.warning("Gemini API error %d: %s", resp.status_code, resp.text[:300])
                 return None
             data = resp.json()
             candidates = data.get("candidates", [])
@@ -301,8 +310,12 @@ def _call_gemini_llm(
         return None
 
 
-def _validate_llm_response(raw: dict[str, Any]) -> dict[str, Any] | None:
+def _validate_llm_response(raw: Any) -> dict[str, Any] | None:
     """Validates LLM output as untrusted input. Returns cleaned dict or None on failure."""
+    # The model may return any JSON value (an array, a string, ...).
+    if not isinstance(raw, dict):
+        logger.warning("LLM returned %s instead of a JSON object, rejecting", type(raw).__name__)
+        return None
     # primary_issue must be a known rule ID or null
     pi = raw.get("primary_issue")
     if pi is not None and pi not in KNOWN_RULE_IDS:

@@ -1,6 +1,18 @@
 // Evaluates completed reps against configured form rules.
 import { squatConfig } from "@shared/exercise-config/index.js";
 
+// Squat depth target (knee angle in degrees; the rep passes at or below it).
+// Personalized: calibrated bottom angle + tolerance, never deeper than the
+// safety floor. Shared by the rule and the on-screen baseline label so the
+// two can never disagree.
+export function squatDepthTargetDeg(depthRule, baselineRom) {
+  if (baselineRom?.kneeBottom != null) {
+    const personalTarget = Math.round(baselineRom.kneeBottom + (depthRule.tolerance ?? 5));
+    return Math.max(personalTarget, depthRule.safetyFloor ?? 70);
+  }
+  return depthRule.minAngleDeg;
+}
+
 export class FormRuleEngine {
   constructor(config = squatConfig) {
     this.config = config;
@@ -62,19 +74,7 @@ export class FormRuleEngine {
 
     if (rules.depth?.enabled) {
       const depthRule = rules.depth;
-      const tolerance = depthRule.tolerance ?? 5;
-      // Hard safety floor — never require depth below this angle (lower angle = deeper).
-      const safetyFloor = depthRule.safetyFloor ?? 70;
-
-      let targetDepth;
-      if (this.baselineRom?.kneeBottom != null) {
-        // Personalized: calibrated bottom angle + tolerance.
-        // Clamp to safety floor so nobody is forced dangerously deep.
-        const personalTarget = Math.round(this.baselineRom.kneeBottom + tolerance);
-        targetDepth = Math.max(personalTarget, safetyFloor);
-      } else {
-        targetDepth = depthRule.minAngleDeg;
-      }
+      const targetDepth = squatDepthTargetDeg(depthRule, this.baselineRom);
 
       const passed = rep.minAngleDeg <= targetDepth;
       results.push({
@@ -107,15 +107,54 @@ export class FormRuleEngine {
         maxAllowed = leanRule.maxAngleDeg;
       }
 
-      const measured = rep.torsoLeanMax ?? 0;
-      const passed = measured <= maxAllowed;
+      // torsoLeanMax is recorded by the squat state machine. When the torso
+      // was never visible during the rep it is null: report it as unmeasured
+      // rather than inventing a 0° lean.
+      const measured = Number.isFinite(rep.torsoLeanMax) ? rep.torsoLeanMax : null;
+      const passed = measured == null || measured <= maxAllowed;
       results.push({
         ruleId: "torso_lean",
         pass: passed,
+        notMeasured: measured == null,
         severity: "medium",
-        measured: measured,
+        measured,
         threshold: maxAllowed,
         cue: passed ? "" : leanRule.cue,
+      });
+    }
+
+    if (rules.knee_valgus?.enabled) {
+      // Only present when the squat state machine saw a front-view frame.
+      const ratio = rep.angleMetrics?.kneeAnkleRatio;
+      const measured = Number.isFinite(ratio) ? ratio : null;
+      const threshold = rules.knee_valgus.minKneeAnkleRatio ?? 0.9;
+      const passed = measured == null || measured >= threshold;
+      results.push({
+        ruleId: "knee_valgus",
+        pass: passed,
+        notMeasured: measured == null,
+        severity: "medium",
+        measured,
+        threshold,
+        cue: passed ? "" : rules.knee_valgus.cue,
+      });
+    }
+
+    if (rules.tempo?.enabled && this.config.tempoBounds) {
+      // Whole-rep duration must fall inside the configured tempo bounds:
+      // faster than minSec is a bounce/drop, slower than maxSec is a stall.
+      const { minSec, maxSec } = this.config.tempoBounds;
+      const measured = Number.isFinite(rep.endMs) && Number.isFinite(rep.startMs)
+        ? (rep.endMs - rep.startMs) / 1000
+        : null;
+      const passed = measured != null && measured >= minSec && measured <= maxSec;
+      results.push({
+        ruleId: "tempo",
+        pass: passed,
+        severity: "low",
+        measured,
+        threshold: measured != null && measured < minSec ? minSec : maxSec,
+        cue: passed ? "" : rules.tempo.cue,
       });
     }
 
@@ -124,7 +163,11 @@ export class FormRuleEngine {
 }
 
 // Computes 0-100 form score mirroring backend app.services.form_score.compute_form_score.
-export function calculateFormScore(reps = [], formIssues = [], weights = squatConfig.scoreWeights) {
+// measuredBy maps a rule to the angle metric that proves it was measured on a
+// rep (e.g. knee_valgus -> kneeAnkleRatio). Such a rule's pass rate uses only
+// reps where it was measured; a rule measured on no rep is left out and the
+// remaining weights are rescaled.
+export function calculateFormScore(reps = [], formIssues = [], weights = squatConfig.scoreWeights, measuredBy = {}) {
   const totalReps = reps.length;
   if (totalReps === 0) return 100.0;
 
@@ -142,11 +185,24 @@ export function calculateFormScore(reps = [], formIssues = [], weights = squatCo
   }
 
   let score = 0.0;
+  let usedWeight = 0.0;
   for (const [rule, weight] of Object.entries(weights)) {
-    const failed = failingRepNumbersByRule[rule] ? failingRepNumbersByRule[rule].size : 0;
-    const passRate = (totalReps - failed) / totalReps;
-    score += weight * passRate;
+    const failing = failingRepNumbersByRule[rule];
+    const metric = measuredBy?.[rule];
+    let considered = totalReps;
+    if (metric) {
+      const measured = new Set(failing);
+      for (const rep of reps) {
+        const metrics = rep.angleMetrics || rep.angle_metrics || {};
+        if (metric in metrics) measured.add(rep.repNumber ?? rep.rep_number);
+      }
+      considered = measured.size;
+      if (considered === 0) continue;
+    }
+    score += weight * ((considered - failing.size) / considered);
+    usedWeight += weight;
   }
 
-  return Math.round(score * 10000) / 100;
+  if (usedWeight === 0) return 100.0;
+  return Math.round((score / usedWeight) * 10000) / 100;
 }

@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 
 from app.database import get_db
 from app.models import User
 from app.schemas import CoachingAnalyzeRequest, CoachingAnalyzeResponse, CoachingBaselineIn
 from app.security import decode_access_token, oauth2_scheme
-from app.rate_limit import enforce_coaching_rate_limit
+from app.rate_limit import coaching_rate_limiter, rate_limit_key
 from app.services.coaching import analyze_session_coaching
 from app.routers.calibration import get_user_exercise_profile
 
@@ -29,15 +29,17 @@ def get_optional_user(
 @router.post("/analyze", response_model=CoachingAnalyzeResponse)
 def analyze_workout(
     payload: CoachingAnalyzeRequest,
+    request: Request,
     current_user: User | None = Depends(get_optional_user),
     db: DBSession = Depends(get_db),
-    _rate_limit: None = Depends(enforce_coaching_rate_limit),
 ):
     """
     Evidence-grounded AI coaching analysis for a completed exercise set.
     Combines measured kinematics, user baseline calibration, and retrieved
     approved guidance to generate a schema-validated coaching breakdown.
     """
+    coaching_rate_limiter.check(rate_limit_key(request, current_user.id if current_user else None))
+
     # If athlete is logged in and baseline not provided in payload, inject from DB
     if current_user and not payload.personalized_baseline:
         profile = get_user_exercise_profile(db, current_user.id, payload.exercise)

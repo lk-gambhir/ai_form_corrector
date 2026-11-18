@@ -5,12 +5,13 @@
     "topic": "depth",
     "exercise": "squat",
     "keywords": ["depth", "shallow", "knee_angle", "femur", "femur_to_torso", "rom", "hip_crease", "parallel"],
-    "content": "Full anatomical squat depth is defined as the hip crease dropping just below the top of the patella. However, individual femur-to-torso proportions significantly dictate bottom knee and hip angles. Lifters with longer femurs relative to their torso (ratio > 1.05) naturally require greater hip flexion and a slightly forward torso lean to maintain center of mass over the midfoot. Forcing excessive depth past an individual's structural threshold can cause posterior pelvic tilt (butt wink) and lumbar shear. Maintain a controlled descent until hip crease reaches knee level without compromising lumbar neutrality.",
+    "content": "Squat depth is generally measured by knee flexion: about 40 degrees is a partial squat, 70 to 100 degrees a half squat, and more than 100 degrees a deep squat, though no single standard is universally recognized (Schoenfeld, 2010). This app asks for at least 90 degrees of knee flexion by default, or your calibrated bottom position if you have calibrated. Body proportions differ, so use a depth you can reach with control.",
     "recommendations": [
       "Work on hip opening and ankle dorsiflexion to achieve parallel depth comfortably.",
       "Practice box squats set exactly to your calibrated depth threshold to build positional awareness.",
       "Widen your stance slightly and flare toes 20-30 degrees to allow the pelvis to settle between the femurs."
-    ]
+    ],
+    "source_url": "https://doi.org/10.1519/JSC.0b013e3181bac2d7"
   },
   {
     "id": "squat_torso_lean_bracing",
@@ -18,12 +19,13 @@
     "topic": "torso_lean",
     "exercise": "squat",
     "keywords": ["torso_lean", "torso", "lean", "chest_drop", "bracing", "lower_back", "lumbar", "core"],
-    "content": "Torso inclination during the squat is heavily governed by skeletal limb lengths and barbell placement. An upright torso requires excellent ankle mobility and quad dominance. When torso lean exceeds an athlete's calibrated baseline, it often signals quad fatigue, ankle stiffness, or weak spinal erectors resulting in a 'good morning' squat. Effective 360-degree intra-abdominal pressure (Valsalva maneuver) before descending stiffens the trunk and prevents spinal shear stresses. Avoid collapsing the chest at the transition point out of the bottom.",
+    "content": "A more erect trunk during the squat favours the quadriceps while reducing the load on the lower back (Lee et al., 2016), and more forward trunk lean shifts torque from the knees to the hips and low back (Fry et al., 2003). This app measures torso lean from vertical in side views and compares it with a 30-degree default or your calibrated baseline. Some forward lean is normal; the limit is a project heuristic, not a published cut-off.",
     "recommendations": [
       "Practice paused goblet squats with an upright torso to strengthen anterior core and thoracic extension.",
       "Cue 'driving the traps into the bar' on the ascent rather than letting the hips shoot up first.",
       "Perform dedicated ankle dorsiflexion mobility drills (banded ankle distractions) to allow forward knee travel."
-    ]
+    ],
+    "source_url": "https://doi.org/10.1589/jpts.28.3407"
   },
   {
     "id": "squat_knee_alignment_valgus",
@@ -31,12 +33,13 @@
     "topic": "knee_valgus",
     "exercise": "squat",
     "keywords": ["knee_valgus", "knee_cave", "valgus", "knee_alignment", "glute_medius", "knees_out", "stance"],
-    "content": "Dynamic knee valgus (knee caving inward during ascent) increases lateral patellofemoral pressure and ACL strain. It is frequently driven by underactive gluteus medius/maximus muscles or collapse of the medial foot arch. The knees should track along the line of the second and third toes throughout the entire movement. Actively recruit hip external rotators by cueing 'screwing the feet into the floor' to create torque through the kinetic chain.",
+    "content": "Knee valgus means the knees move inward relative to the ankles. Valgus lower-limb alignment has been noted during non-contact ACL injuries, and video screening measures how far apart the knees stay compared with the ankles (Noyes et al., 2005). This app uses the knee-to-ankle separation ratio from a front-facing camera at the deepest point of each rep: 1.0 means the knees are directly over the ankles and lower values mean the knees are closer together (Mizner et al., 2012). It flags a rep below 0.9, a project heuristic; no published cut-off exists. Reps filmed from the side are not scored for valgus.",
     "recommendations": [
-      "Perform banded squats or monster walks during warmups to prime the glute medius for external rotation.",
+      "Squat with your knees tracking over your toes; neuromuscular training improved knee separation in the drop-jump study by Noyes et al. (2005).",
       "Focus on actively gripping the floor with the 'tripod foot' (heel, base of big toe, base of pinky toe).",
       "Reduce bar load slightly to reinforce knee tracking over toes without reflexive inward collapse."
-    ]
+    ],
+    "source_url": "https://doi.org/10.1097/JSM.0b013e31823a46ce"
   },
   {
     "id": "squat_tempo_control",
@@ -44,7 +47,7 @@
     "topic": "tempo",
     "exercise": "squat",
     "keywords": ["tempo", "too_fast", "dive_bomb", "eccentric", "stretch_reflex", "speed", "ascent_descent_ratio"],
-    "content": "Diving rapidly into the bottom of a squat to bounce out uses passive connective tissue rather than active muscular control, substantially increasing the risk of knee ligament and spinal strain. A controlled eccentric descent (2.5 to 3.5 seconds) maintains muscular tension, reinforces technical groove, and optimizes stretch-shortening cycle mechanics. The transition from descent to ascent should be tight, intentional, and explosive without losing brace.",
+    "content": "This app flags a squat rep that takes less than 0.5 seconds (usually bouncing out of the bottom) or more than 12 seconds (stalling). These limits are project heuristics rather than published values. A steady, controlled pace makes it easier to repeat the same movement on every rep.",
     "recommendations": [
       "Incorporate 3-1-1 tempo squats (3s descent, 1s pause at bottom, 1s explosive ascent) into warmups.",
       "Maintain active quad and glute engagement on the way down rather than relaxing into the joint capsule.",
@@ -109,11 +112,11 @@
     "topic": "range_of_motion",
     "exercise": "push_up",
     "citation": "US Army ATP 7-22.01 & NASM Exercise Library",
-    "source_url": "https://www.armyresilience.army.mil/ard/images/pdf/Policy/ARN35869-ATP_7-22.01-002-WEB-5.pdf",
+    "source_url": "https://doi.org/10.1177/17585732211019373",
     "keywords": ["range_of_motion", "depth", "elbow_angle", "elbow", "rom", "shallow", "parallel", "push_up"],
-    "content": "Standard push-up depth requires lowering the body until the upper arms are at least parallel to the floor, corresponding to an elbow flexion angle of approximately 90 degrees or less. Reversing before reaching this threshold reduces triceps and anterior deltoid engagement through the intended range. Maintain a smooth descent and press through the palms to full lockout without hyperextending.",
+    "content": "A standard push-up is lowered until the elbows reach 90 degrees of flexion and then returned to the starting position (Kowalski et al., 2022, Shoulder & Elbow). This app measures the shoulder-elbow-wrist angle from a side view and flags a repetition whose lowest elbow angle stays above 90 degrees. Maintain a smooth descent and press back up to straight arms.",
     "recommendations": [
-      "Lower until your upper arms reach parallel with the floor (approx. 90° elbow bend).",
+      "Lower until your elbows reach about 90 degrees.",
       "Practice chest-to-pad or incline push-ups if full floor range is difficult to sustain.",
       "Focus on controlled 2-second lowering before pressing up explosively."
     ]
@@ -124,9 +127,9 @@
     "topic": "body_alignment",
     "exercise": "push_up",
     "citation": "US Army ATP 7-22.01",
-    "source_url": "https://www.armyresilience.army.mil/ard/images/pdf/Policy/ARN35869-ATP_7-22.01-002-WEB-5.pdf",
+    "source_url": "https://doi.org/10.1186/s12891-015-0486-5",
     "keywords": ["body_alignment", "alignment", "sag", "pike", "plank", "core", "hips", "push_up"],
-    "content": "The Army push-up standard describes lowering and raising the body as one unit. This app uses the visible shoulder-hip-ankle line as a 2D coaching proxy; it does not assess spinal loading or diagnose technique-related injury.",
+    "content": "Push-up protocols keep the hips in a neutral position with the knees extended (Kowalski et al., 2022) and an angle of approximately 180 degrees between the upper and lower body (San Juan et al., 2015). This app uses the visible shoulder-hip-ankle line as a 2D coaching proxy; it does not assess spinal loading or diagnose technique-related injury.",
     "recommendations": [
       "Squeeze your glutes and brace your core to keep hips in a straight line with shoulders and heels.",
       "Keep your torso moving as one unit through the repetition.",
@@ -154,9 +157,9 @@
     "topic": "lockout",
     "exercise": "deadlift",
     "citation": "NASM Squats and Deadlifts Guide",
-    "source_url": "https://trainer.nasm.org/hubfs/NASM_Free%20Guide_Squats%20and%20Deadlifts.pdf?hsLang=en",
+    "source_url": "https://doi.org/10.3389/fbioe.2025.1597209",
     "keywords": ["lockout", "hip_lockout", "extension", "glutes", "standing", "deadlift", "erect"],
-    "content": "A conventional deadlift repetition moves from the floor to a standing finish. This app uses the side-view hip angle as a proxy for the standing finish; it cannot verify bar position, full knee extension, or spinal loading from that signal alone. Stand tall under control rather than leaning back at the finish.",
+    "content": "A conventional deadlift is complete when the lifter reaches an upright stance with fully extended knees and hips and retracted shoulders (Hanen et al., 2025). This app uses the side-view hip angle as a proxy for that standing finish; it cannot verify bar position, full knee extension, or spinal loading from that signal alone. Stand tall under control rather than leaning back at the finish.",
     "recommendations": [
       "Finish by standing tall under control.",
       "Avoid leaning back at the top of the movement.",
@@ -169,9 +172,9 @@
     "topic": "movement_range",
     "exercise": "deadlift",
     "citation": "NASM Exercise Library & PMC12148905",
-    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12148905/",
+    "source_url": "https://doi.org/10.3389/fbioe.2025.1597209",
     "keywords": ["movement_range", "rom", "setup", "floor", "hinge", "deadlift", "range"],
-    "content": "The conventional deadlift moves from a floor-level setup to standing and returns the load to the floor. The app tracks visible body landmarks and does not track bar path, so it can only estimate movement completion from the selected side-view angles.",
+    "content": "The conventional deadlift moves from a floor-level setup to standing; Hanen et al. (2025) measured about 88 degrees of hip extension from lift-off to lift completion in experienced lifters. The app tracks visible body landmarks and does not track bar path, so it estimates the setup depth from the side-view hip angle only.",
     "recommendations": [
       "Use a stable setup before lifting from the floor.",
       "Lower the bar under control all the way back to the floor before starting the next rep.",

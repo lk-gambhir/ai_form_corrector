@@ -20,36 +20,54 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 OAUTH_DISABLED_HASH = "!oauth_account_no_password_login!"
 
 
-def verify_google_token(token_str: str, client_id: str | None, environment: str) -> dict:
+TEST_TOKEN_PREFIXES = ("test-", "mock-", "google-")
+
+
+def is_insecure_test_token(token_str: str, settings) -> bool:
+    """True only for fake test tokens when test tokens are explicitly enabled."""
+    return (
+        settings.environment == "test"
+        and settings.allow_insecure_test_tokens
+        and token_str.startswith(TEST_TOKEN_PREFIXES)
+    )
+
+
+def verify_google_token(token_str: str, client_id: str | None) -> dict:
     """Verifies Google ID token cryptographic signature against Google certificates."""
-    if environment == "test" and (
-        token_str.startswith("test-")
-        or token_str.startswith("mock-")
-        or token_str.startswith("google-")
-    ):
-        return {}
     if not client_id:
         raise HTTPException(status_code=500, detail="Google OAuth is not configured")
 
     try:
-        return id_token.verify_oauth2_token(token_str, google_requests.Request(), client_id)
-    except Exception as exc:
+        claims = id_token.verify_oauth2_token(token_str, google_requests.Request(), client_id)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid or expired Google OAuth token: {str(exc)}",
+            detail="Invalid or expired Google OAuth token",
         )
+    if not claims.get("email") or not claims.get("email_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google account email is missing or not verified",
+        )
+    return claims
 
 
 @router.post("/google", response_model=OAuthResponse)
 def google_auth(payload: GoogleAuthRequest, db: DBSession = Depends(get_db)):
     settings = get_settings()
-    token_data = verify_google_token(payload.token, settings.google_client_id, settings.environment)
+    if is_insecure_test_token(payload.token, settings):
+        # Test-only path: identity comes from the request body.
+        token_data = {"email": payload.email, "name": payload.name}
+    else:
+        # Identity comes ONLY from the verified Google token; the email/name
+        # in the request body are never trusted for real sign-ins.
+        token_data = verify_google_token(payload.token, settings.google_client_id)
 
-    email = str(token_data.get("email") or payload.email).strip().lower()
+    email = str(token_data.get("email") or "").strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Valid email required")
 
-    name = token_data.get("name") or payload.name
+    name = token_data.get("name")
     base_username = name.strip() if name and name.strip() else email.split("@")[0]
     candidate_username = base_username.lower().replace(" ", "_")
 

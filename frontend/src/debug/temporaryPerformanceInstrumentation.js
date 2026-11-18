@@ -61,6 +61,11 @@ export function createTemporaryPerformanceMonitor({ durationMs = 60_000 } = {}) 
       manualRepNote = "Manual 20-rep count not recorded";
     },
 
+    // True while a benchmark window is being recorded.
+    isMeasuring() {
+      return active && !finished;
+    },
+
     startFrame(captureTimestamp) {
       if (!active || startedAt == null) return true;
       return !finished && captureTimestamp - startedAt <= durationMs;

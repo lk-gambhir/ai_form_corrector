@@ -1,6 +1,6 @@
 """Per-user dashboard summary + trends. Always scoped to the current JWT user."""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session as DBSession
+from sqlalchemy.orm import Session as DBSession, selectinload
 
 from app.database import get_db
 from app.models import Session as SessionModel, User
@@ -15,7 +15,13 @@ VALID_METRICS = {"form_score", "rom", "tempo", "reps"}
 
 
 def _user_sessions(db: DBSession, user_id: str, exercise: str | None = None) -> list[SessionModel]:
-    query = db.query(SessionModel).filter(SessionModel.user_id == user_id)
+    # Load every session's reps and issues in two extra queries instead of
+    # one query per session (the aggregation reads both).
+    query = (
+        db.query(SessionModel)
+        .options(selectinload(SessionModel.reps), selectinload(SessionModel.form_issues))
+        .filter(SessionModel.user_id == user_id)
+    )
     if exercise:
         query = query.filter(SessionModel.exercise == exercise)
     return query.all()

@@ -50,13 +50,13 @@ PROJECT_RULES.md
 GSD-STYLE.md
 model_capabilities.yaml
 
-# Excluded documentation and test directories
+# Excluded documentation (project docs the README links to are kept)
 *.md
 !README.md
+!PROGRESS.md
+!tasks.md
+!data/videos/SOURCES.md
 memory/
-backend/app/tests/
-frontend/src/__tests__/
-frontend/e2e/
 
 !journals/
 !journals/**

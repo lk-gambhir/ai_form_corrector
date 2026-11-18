@@ -4,7 +4,7 @@ import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
 import { AnalysisPipeline } from "@/pipeline/AnalysisPipeline.js";
 import { squatConfig } from "@shared/exercise-config/index.js";
-import { calculateFormScore } from "@/analysis/FormRuleEngine.js";
+import { calculateFormScore, squatDepthTargetDeg } from "@/analysis/FormRuleEngine.js";
 import { MetricsEngine } from "@/analysis/MetricsEngine.js";
 import { getBaseline } from "@/api/calibrationApi.js";
 // TEMPORARY PERFORMANCE INSTRUMENTATION: remove this import and marked hooks after benchmarking.
@@ -27,6 +27,8 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
   const [sessionSummary, setSessionSummary] = useState(null);
   const [collectedIssues, setCollectedIssues] = useState([]);
   const [baseline, setBaseline] = useState(null);
+  // Read by the frame loop (a closure), so it needs a ref rather than state.
+  const workoutActiveRef = useRef(false);
   const metricsEngine = useRef(new MetricsEngine());
   // TEMPORARY PERFORMANCE INSTRUMENTATION: timing-only session monitor.
   const performanceMonitorRef = useRef(null);
@@ -49,12 +51,14 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
     setAnalysis({ repCount: 0, feedback: { activeCue: null } });
     setCollectedIssues([]);
     setWorkoutStartTime(Date.now());
+    workoutActiveRef.current = true;
     setIsWorkoutActive(true);
     onWorkoutLockChange?.(true);
   }
 
   // Completes set and generates structured session summary.
   function handleEndSet() {
+    workoutActiveRef.current = false;
     setIsWorkoutActive(false);
     const endedAt = Date.now();
     const durationSeconds = Math.max(1, (endedAt - (workoutStartTime || endedAt)) / 1000);
@@ -83,7 +87,7 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
     }
 
     // Compute standard form score aligned with backend app.services.form_score.
-    const formScore = calculateFormScore(reps, allIssues, config.scoreWeights);
+    const formScore = calculateFormScore(reps, allIssues, config.scoreWeights, config.scoreMeasuredBy);
 
     const summary = {
       exercise: config.id,
@@ -182,16 +186,19 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
         if (cancelled) return;
 
         if (video.videoWidth > 0 && video.videoHeight > 0) {
+          const active = workoutActiveRef.current;
           // TEMPORARY PERFORMANCE INSTRUMENTATION: frame-capture timestamp.
           const captureTimestamp = performance.now();
-          if (!performanceMonitorRef.current.startFrame(captureTimestamp)) {
+          // The benchmark window ending must only stop the measurement, never
+          // the pose-tracking loop itself.
+          if (active && !performanceMonitorRef.current.startFrame(captureTimestamp)) {
             performanceMonitorRef.current.finish();
-            return;
           }
 
           if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            pipeline.setFrameSize(video.videoWidth, video.videoHeight);
           }
 
           // TEMPORARY PERFORMANCE INSTRUMENTATION: equivalent to timing MediaPipe's
@@ -202,6 +209,13 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           drawPose(ctx, landmarks, canvas.width, canvas.height);
 
+          // Only analyse frames during a set: before "Start Workout" and
+          // after "End Workout" the skeleton is drawn but no reps are counted.
+          if (!active) {
+            rafRef.current = requestAnimationFrame(tick);
+            return;
+          }
+
           // Process frame through analysis pipeline.
           const result = pipeline.processFrame(landmarks, detectionDone);
           // TEMPORARY PERFORMANCE INSTRUMENTATION: rep-count/angle calculation done.
@@ -211,7 +225,21 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
             detectionDone,
             repCountDone: result.repCount,
           });
-          setAnalysis({ repCount: result.repCount, feedback: result.feedback, metrics: result.metrics });
+          // metrics is only non-null on the frame a rep completes; keep the
+          // last rep's metrics on screen until the next rep replaces them.
+          // Re-render only when something visible changed (the benchmark,
+          // while it runs, needs a render per frame to time UI latency).
+          setAnalysis((prev) => {
+            const next = {
+              repCount: result.repCount,
+              feedback: result.feedback,
+              metrics: result.metrics ?? prev.metrics,
+            };
+            const unchanged = prev.repCount === next.repCount
+              && prev.feedback?.activeCue === next.feedback.activeCue
+              && prev.metrics === next.metrics;
+            return unchanged && !performanceMonitorRef.current.isMeasuring() ? prev : next;
+          });
 
           // Track form issues during active set.
           if (result.newIssues?.length) {
@@ -269,7 +297,9 @@ export default function CameraView({ config = squatConfig, onWorkoutLockChange }
 
           <div className="status-pill" data-testid="baseline-status-pill">
             <span>{config.id === "squat"
-              ? (baseline?.rom?.kneeBottom ? `Baseline: Depth < ${Math.min(90, Math.round(baseline.rom.kneeBottom + 5))}°` : "Baseline: Standard (90°)")
+              ? (baseline?.rom?.kneeBottom != null
+                ? `Baseline: Depth ≤ ${squatDepthTargetDeg(config.rules.depth, baseline.rom)}°`
+                : `Baseline: Standard (${config.rules.depth.minAngleDeg}°)`)
               : "Activity-specific analysis"}</span>
           </div>
 

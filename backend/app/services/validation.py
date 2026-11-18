@@ -11,7 +11,7 @@ first failure found.
 from fastapi import HTTPException, status
 
 from app.schemas import SessionCreateRequest
-from app.services.form_score import ISSUE_IDS_BY_EXERCISE, get_score_weights, is_within_tolerance
+from app.services.form_score import ISSUE_IDS_BY_EXERCISE, get_measured_by, get_score_weights, is_within_tolerance
 
 
 def validate_session_payload(payload: SessionCreateRequest) -> float:
@@ -79,6 +79,7 @@ def validate_session_payload(payload: SessionCreateRequest) -> float:
         payload.reps,
         payload.form_issues,
         weights=get_score_weights(payload.exercise),
+        measured_by=get_measured_by(payload.exercise),
     )
     if not ok:
         raise HTTPException(

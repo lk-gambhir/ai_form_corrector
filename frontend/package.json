@@ -13,7 +13,7 @@
     "e2e:install": "playwright install --with-deps chromium"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^0.10.18",
+    "@mediapipe/tasks-vision": "0.10.35",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.28.0",

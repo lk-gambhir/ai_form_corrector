@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     google_client_id: str = ""
     environment: str = "development"
 
+    # Lets /api/auth/google accept fake "test-*"/"mock-*"/"google-*" tokens
+    # (no Google verification) for automated tests ONLY. Requires BOTH this
+    # flag and APP_ENVIRONMENT=test, and is refused in production, so a
+    # single mis-set environment variable can no longer disable sign-in
+    # verification on a deployed server.
+    allow_insecure_test_tokens: bool = False
+
     # AI Coaching / LLM settings
     gemini_api_key: str = ""
     coaching_model: str = "gemini-2.5-flash"
@@ -42,6 +49,8 @@ class Settings(BaseSettings):
     def validate_production_secret(self):
         if self.environment == "production" and self.jwt_secret == "dev-only-insecure-secret-change-me":
             raise ValueError("APP_JWT_SECRET must be changed when APP_ENVIRONMENT=production")
+        if self.allow_insecure_test_tokens and self.environment != "test":
+            raise ValueError("APP_ALLOW_INSECURE_TEST_TOKENS may only be set when APP_ENVIRONMENT=test")
         return self
 
 

@@ -1,8 +1,11 @@
 // Wrapper around @mediapipe/tasks-vision PoseLandmarker.
 import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 
+// Must be the exact version installed from package.json (pinned, no "^"):
+// the JavaScript API and the WASM runtime it loads have to match.
+const MEDIAPIPE_VERSION = "0.10.35";
 const WASM_FILESET_URL =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm";
+  `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}/wasm`;
 
 export class PoseEstimator {
   constructor(landmarker) {

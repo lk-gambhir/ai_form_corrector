@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from app.database import Base
 
@@ -26,6 +27,32 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UTCDateTime(TypeDecorator):
+    """Timezone-safe datetime column.
+
+    SQLite has no timezone support: a plain `DateTime` silently drops the
+    offset, and values come back naive, so the API returned
+    "2026-11-18T10:00:00" (no "Z") and browsers parsed it as *local* time.
+    This type converts aware values to UTC before storing and marks values
+    read back as UTC, so responses serialize with an explicit "Z". Naive
+    input is assumed to already be UTC (which is what existing rows hold,
+    since the frontend always sends toISOString()).
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value
+
+
 class User(Base):
     __tablename__ = "user"
 
@@ -34,7 +61,7 @@ class User(Base):
     email: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
 
     sessions: Mapped[list["Session"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     baseline: Mapped["UserBaseline | None"] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -46,12 +73,12 @@ class Session(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("user.id"), nullable=False)
     exercise: Mapped[str] = mapped_column(String, nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    ended_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    ended_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
     rep_count: Mapped[int] = mapped_column(Integer, nullable=False)
     form_score: Mapped[float] = mapped_column(Float, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
 
     user: Mapped["User"] = relationship(back_populates="sessions")
     reps: Mapped[list["Rep"]] = relationship(back_populates="session", cascade="all, delete-orphan")
@@ -106,6 +133,6 @@ class UserBaseline(Base):
     limb_ratios: Mapped[dict] = mapped_column(JSON, default=dict)
     rom: Mapped[dict] = mapped_column(JSON, default=dict)
     angle_stats: Mapped[dict] = mapped_column(JSON, default=dict)
-    calibrated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    calibrated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_utcnow)
 
     user: Mapped["User"] = relationship(back_populates="baseline")

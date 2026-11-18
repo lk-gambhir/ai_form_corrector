@@ -28,6 +28,7 @@ from exercises.push_up.backend.scoring import (
 from exercises.squat.backend.scoring import (
     EXERCISE_ID as SQUAT_ID,
     ISSUE_IDS as SQUAT_ISSUES,
+    SCORE_MEASURED_BY as SQUAT_MEASURED_BY,
     SCORE_WEIGHTS as SQUAT_WEIGHTS,
 )
 
@@ -45,8 +46,18 @@ ISSUE_IDS_BY_EXERCISE: dict[str, set[str]] = {
 }
 
 
+# Rules scored only on reps where they were measured (see compute_form_score).
+SCORE_MEASURED_BY_EXERCISE: dict[str, dict[str, str]] = {
+    SQUAT_ID: SQUAT_MEASURED_BY,
+}
+
+
 def get_score_weights(exercise: str) -> dict[str, float]:
     return SCORE_WEIGHTS_BY_EXERCISE[exercise]
+
+
+def get_measured_by(exercise: str) -> dict[str, str]:
+    return SCORE_MEASURED_BY_EXERCISE.get(exercise, {})
 
 # +/- points of slack allowed between the client-submitted form_score and the
 # server's independent recomputation before we reject the session as
@@ -65,18 +76,31 @@ class IssueLike:
     issue_type: str
 
 
+def _field(obj, name: str, default=None):
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
+
+
 def compute_form_score(
     reps: list,
     form_issues: list,
     weights: dict[str, float] | None = None,
+    measured_by: dict[str, str] | None = None,
 ) -> float:
     """Recompute the 0-100 form score from rep + issue records.
 
     `reps` / `form_issues` may be ORM rows, Pydantic models, or any object
     exposing `.rep_number` (and `.issue_type` for issues) — duck-typed so the
     same function works against request payloads and DB rows.
+
+    `measured_by` maps a rule to the `angle_metrics` key that shows it was
+    measured on a rep. Such a rule's pass rate uses only reps where it was
+    measured (metric present, or an issue was logged for it); a rule measured
+    on no rep is left out and the remaining weights are rescaled.
     """
     weights = DEFAULT_SCORE_WEIGHTS if weights is None else weights
+    measured_by = measured_by or {}
     total_reps = len(reps)
 
     if total_reps == 0:
@@ -92,12 +116,26 @@ def compute_form_score(
             failing_rep_numbers_by_rule[rule].add(rep_number)
 
     score = 0.0
+    used_weight = 0.0
     for rule, weight in weights.items():
-        failed = len(failing_rep_numbers_by_rule[rule])
-        pass_rate = (total_reps - failed) / total_reps
-        score += weight * pass_rate
+        failing = failing_rep_numbers_by_rule[rule]
+        considered = total_reps
+        metric = measured_by.get(rule)
+        if metric:
+            measured = set(failing)
+            for rep in reps:
+                angle_metrics = _field(rep, "angle_metrics") or {}
+                if metric in angle_metrics:
+                    measured.add(_field(rep, "rep_number"))
+            considered = len(measured)
+            if considered == 0:
+                continue
+        score += weight * (considered - len(failing)) / considered
+        used_weight += weight
 
-    return round(score * 100, 4)
+    if used_weight == 0:
+        return 100.0
+    return round(score / used_weight * 100, 4)
 
 
 def is_within_tolerance(
@@ -106,7 +144,8 @@ def is_within_tolerance(
     form_issues: list,
     weights: dict[str, float] | None = None,
     tolerance: float = SCORE_TOLERANCE,
+    measured_by: dict[str, str] | None = None,
 ) -> tuple[bool, float]:
     """Returns (ok, server_computed_score)."""
-    server_score = compute_form_score(reps, form_issues, weights)
+    server_score = compute_form_score(reps, form_issues, weights, measured_by)
     return abs(client_score - server_score) <= tolerance, server_score

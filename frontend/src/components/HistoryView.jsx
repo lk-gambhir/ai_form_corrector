@@ -116,19 +116,19 @@ export default function HistoryView({ onNavigate }) {
 
       {/* Detailed Analysis & Logs */}
       <div className="dashboard-sections">
-        {selectedExercise === "squat" && summary?.most_common_issues?.length > 0 && (
+        {selectedExercise !== "all" && summary?.most_common_issues?.length > 0 && (
           <div className="section-card ai-focus-card" data-testid="ai-dashboard-focus" style={{ gridColumn: "1 / -1", background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.5rem", marginBottom: "1.5rem" }}>
             <div className="section-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff" }}>AI Coaching Diagnosis</h3>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff" }}>Most Common Issue</h3>
               </div>
               <span className="section-tag">Kinematic Feedback</span>
             </div>
             <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: "1.5", color: "var(--text-secondary)" }}>
               Your primary recurring kinematic deviation is{" "}
               <strong style={{ color: "var(--red-primary)" }}>{summary.most_common_issues[0].issue_type.replace("_", " ")}</strong> (
-              {summary.most_common_issues[0].count} occurrences). Focus on approved corrective
-              drills (tempo pauses, box squats) and keep your joint flexion within calibrated baseline angles.
+              {summary.most_common_issues[0].count} occurrences across your saved sessions). Open a session summary
+              for coaching guidance on this issue.
             </p>
           </div>
         )}

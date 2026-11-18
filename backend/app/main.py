@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Squat Form Analyzer API", lifespan=lifespan)
+app = FastAPI(title="FormGuard AI API", lifespan=lifespan)
 
 settings = get_settings()
 app.add_middleware(

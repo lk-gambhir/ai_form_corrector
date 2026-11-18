@@ -2,11 +2,18 @@ import React, { useState, useEffect } from "react";
 import { saveSession } from "@/api/sessionApi.js";
 import { getBaseline } from "@/api/calibrationApi.js";
 import { analyzeCoaching, formatCoachingPayload } from "@/api/coachingApi.js";
+import { getExerciseConfig } from "@shared/exercise-config/index.js";
+
+const UNSCORED_HINTS = {
+  knee_valgus: "Knee valgus (face the camera to check it)",
+  torso_lean: "Torso lean (film from the side to check it)",
+};
 
 export default function SessionSummaryModal({ summary, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [isSaveError, setIsSaveError] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   // AI Coaching RAG state
   const [coaching, setCoaching] = useState(null);
@@ -56,13 +63,23 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
 
   if (!summary) return null;
   const score = summary.repCount > 0 ? Math.round(summary.formScore ?? 0) : null;
+  // Rules that need a particular camera view (e.g. knee valgus needs a front
+  // view) and were measured on no rep are left out of the score; say so.
+  const measuredBy = getExerciseConfig(summary.exercise)?.scoreMeasuredBy || {};
+  const unscoredRules = summary.repCount > 0
+    ? Object.entries(measuredBy)
+      .filter(([, metric]) => !(summary.reps || []).some((rep) => metric in (rep.angleMetrics || {})))
+      .map(([rule]) => UNSCORED_HINTS[rule] || rule)
+    : [];
 
   async function handleSave() {
+    if (saving || saved) return;
     setSaving(true);
     setSaveStatus(null);
     setIsSaveError(false);
     try {
       await saveSession(summary);
+      setSaved(true);
       setSaveStatus("Session saved to profile!");
       if (onSaved) onSaved();
     } catch (err) {
@@ -140,6 +157,12 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
           <div className="feedback-clean-card">
             <span>All configured {summary.exercise?.replace("_", " ")} checks passed for this set.</span>
           </div>
+        )}
+
+        {unscoredRules.length > 0 && (
+          <p className="save-status" data-testid="unscored-rules-note">
+            Not scored this set: {unscoredRules.join("; ")}.
+          </p>
         )}
 
         {/* AI Coaching RAG Breakdown Section */}
@@ -269,10 +292,10 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
             type="button"
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving || summary.repCount < 1}
+            disabled={saving || saved || summary.repCount < 1}
             data-testid="btn-save-session"
           >
-            {saving ? "Saving..." : summary.repCount < 1 ? "No reps to save" : "Save to Cloud"}
+            {saving ? "Saving..." : saved ? "Saved" : summary.repCount < 1 ? "No reps to save" : "Save to Cloud"}
           </button>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Dismiss

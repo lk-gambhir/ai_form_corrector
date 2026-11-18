@@ -1,0 +1,8 @@
+# Dependencies for tools/extract_landmarks.py (fixture extraction only; the
+# app itself does not need these). Use a separate venv, e.g. .venv-extract/.
+#
+# extract_landmarks.py uses the legacy `mp.solutions.pose` API. mediapipe
+# 0.10.14 still ships it (mediapipe/python/solutions/pose.py); newer releases
+# moved to the Tasks API, so keep this pin unless the script is ported.
+mediapipe==0.10.14
+opencv-python>=4.8,<5

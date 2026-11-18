@@ -4,7 +4,7 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-echo "🏋️  Starting Squat Form Analyzer..."
+echo "🏋️  Starting FormGuard AI..."
 echo "----------------------------------------"
 
 # Clean up child processes on Ctrl+C or termination
