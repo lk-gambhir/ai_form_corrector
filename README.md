@@ -2,7 +2,7 @@
 
 FormGuard AI is a real-time activity-based form-analysis and biomechanics coaching system. It uses a browser camera and MediaPipe Pose Landmarker to track body landmarks, calculate joint angles, detect repetitions, evaluate form, and provide corrective feedback.
 
-**Current support:** Squat, Push-up, and Deadlift are selectable activities with separate analysis configurations, progress pages, score rules, and session filtering. Push-up and Deadlift use heuristic angle-cycle detectors and still need representative fixture/live-camera validation before making accuracy claims. Bench Press remains future scope. See [`PROGRESS.md`](./PROGRESS.md) and [`tasks.md`](./tasks.md) for status and remaining validation work.
+**Current support:** Squat, Push-up, and Deadlift are supported exercises with separate analysis configurations, score rules, and session filtering. Push-up and Deadlift use heuristic angle-cycle detectors and still need representative fixture/live-camera validation before making accuracy claims. Bench Press remains future scope.
 
 The project is designed as an exercise-assistance tool. It is not a medical device and does not diagnose injuries or replace a qualified coach or healthcare professional.
 

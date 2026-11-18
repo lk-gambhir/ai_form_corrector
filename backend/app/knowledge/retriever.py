@@ -180,7 +180,7 @@ class BiomechanicsKnowledgeRetriever:
         # Sort descending by score
         scores.sort(key=lambda x: x[0], reverse=True)
 
-        # For newer activities, return issue-specific guidance when it exists.
+        # For newer exercises, return issue-specific guidance when it exists.
         if target_exercise in {"push_up", "deadlift"} and exact_issue_topics:
             matching = [
                 item for item in scores

@@ -45,13 +45,13 @@ export default function HistoryView({ onNavigate }) {
             <span>Training Logbook & Biomechanical Analytics</span>
           </h2>
           <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
-            Review sessions and progress for one activity at a time.
+            Review sessions and progress for one exercise at a time.
           </p>
         </div>
         <label className="history-activity-filter">
-          <span>Activity</span>
+          <span>Exercise</span>
           <select value={selectedExercise} onChange={(event) => setSelectedExercise(event.target.value)}>
-            <option value="all">All activities</option>
+            <option value="all">All exercises</option>
             {listSupportedExercises().map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.displayName}</option>)}
           </select>
         </label>

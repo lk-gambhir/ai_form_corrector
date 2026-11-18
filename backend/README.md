@@ -1,7 +1,7 @@
 # Backend — FormGuard AI API
 
 FastAPI + SQLite backend: auth, session storage, dashboard aggregation, and
-calibration baselines for the activity-based app. Session creation accepts
+calibration baselines for the multi-exercise app. Session creation accepts
 Squat, Push-up, and Deadlift with exercise-specific issue validation and score
 weights. Receives only numeric/structured session summaries from the frontend
 — **no video or image data reaches this service.**

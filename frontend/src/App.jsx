@@ -6,13 +6,10 @@ import WorkoutPage from "@/pages/WorkoutPage.jsx";
 import CalibrationPage from "@/pages/CalibrationPage.jsx";
 import DashboardPage from "@/pages/DashboardPage.jsx";
 import HistoryPage from "@/pages/HistoryPage.jsx";
-import ActivitiesPage from "@/pages/ActivitiesPage.jsx";
-import ActivityPage from "@/pages/ActivityPage.jsx";
-import { getExerciseConfig } from "@shared/exercise-config/index.js";
 import Navbar from "@/components/layout/Navbar.jsx";
 import Footer from "@/components/layout/Footer.jsx";
 
-const VALID_TABS = ["dashboard", "activities", "activity", "workout", "calibration", "history"];
+const VALID_TABS = ["dashboard", "workout", "calibration", "history"];
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -24,9 +21,6 @@ function AppContent() {
     if (VALID_TABS.includes(storedTab)) return storedTab;
     return "dashboard";
   });
-  const [activityId, setActivityId] = useState(() => {
-    try { return localStorage.getItem("activeActivity") || "squat"; } catch (_) { return "squat"; }
-  });
   const [selectedExerciseId, setSelectedExerciseId] = useState(() => {
     try { return localStorage.getItem("selectedExercise") || ""; } catch (_) { return ""; }
   });
@@ -34,28 +28,16 @@ function AppContent() {
 
   const handleSelectTab = (tab) => {
     if (workoutLocked && tab !== "workout") return;
-    if (typeof tab !== "string" || (!VALID_TABS.includes(tab) && !tab.startsWith("activity:"))) return;
-    let nextTab = tab;
-    if (tab.startsWith("activity:")) {
-      const nextActivityId = tab.split(":")[1];
-      if (!getExerciseConfig(nextActivityId)) return;
-      setActivityId(nextActivityId);
-      try { localStorage.setItem("activeActivity", nextActivityId); } catch (_) {}
-      nextTab = "activity";
-    }
-    setActiveTab(nextTab);
+    if (typeof tab !== "string" || !VALID_TABS.includes(tab)) return;
+    setActiveTab(tab);
     try {
-      localStorage.setItem("activeTab", nextTab);
+      localStorage.setItem("activeTab", tab);
     } catch (_) {}
   };
 
   const chooseWorkoutExercise = (exerciseId) => {
     setSelectedExerciseId(exerciseId);
     try { localStorage.setItem("selectedExercise", exerciseId); } catch (_) {}
-  };
-  const startActivityWorkout = (exerciseId) => {
-    chooseWorkoutExercise(exerciseId);
-    handleSelectTab("workout");
   };
 
   // Mandatory Google OAuth Login Gate.
@@ -68,15 +50,6 @@ function AppContent() {
       <Navbar activeTab={activeTab} onSelectTab={handleSelectTab} />
       <main className="app-main-content">
         {activeTab === "dashboard" && <DashboardPage onNavigate={handleSelectTab} />}
-        {activeTab === "activities" && <ActivitiesPage onNavigate={handleSelectTab} />}
-        {activeTab === "activity" && (getExerciseConfig(activityId) ? (
-          <ActivityPage
-            key={activityId}
-            exercise={getExerciseConfig(activityId)}
-            onBack={() => handleSelectTab("activities")}
-            onStartWorkout={startActivityWorkout}
-          />
-        ) : <ActivitiesPage onNavigate={handleSelectTab} />)}
         {activeTab === "workout" && <WorkoutPage initialExerciseId={selectedExerciseId} onExerciseChange={chooseWorkoutExercise} onWorkoutLockChange={setWorkoutLocked} />}
         {activeTab === "calibration" && <CalibrationPage onNavigate={handleSelectTab} />}
         {activeTab === "history" && <HistoryPage onNavigate={handleSelectTab} />}

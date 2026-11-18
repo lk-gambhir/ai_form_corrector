@@ -18,15 +18,15 @@ export default function WorkoutPage({ initialExerciseId, onExerciseChange, onWor
     <div className="page-view workout-page" data-testid="workout-page">
       <div className="section-header-wrap" style={{ marginBottom: "1.25rem" }}>
         <div>
-          <h2 className="section-title"><span>Choose an Activity</span></h2>
+          <h2 className="section-title"><span>Choose an Exercise</span></h2>
           <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
-            Each activity uses its own repetition and form-analysis rules.
+            Each exercise uses its own repetition and form-analysis rules.
           </p>
         </div>
         <span className="section-tag">Workout Setup</span>
       </div>
 
-      <div className="activity-selector-grid" role="group" aria-label="Select workout activity">
+      <div className="activity-selector-grid" role="group" aria-label="Select workout exercise">
         {listSupportedExercises().map((item) => (
           <button
             type="button"
@@ -55,7 +55,7 @@ export default function WorkoutPage({ initialExerciseId, onExerciseChange, onWor
           />
         </>
       ) : (
-        <div className="activity-progress-card activity-empty">Select an activity to load its camera setup and analysis.</div>
+        <div className="activity-progress-card activity-empty">Select an exercise to load its camera setup and analysis.</div>
       )}
     </div>
   );

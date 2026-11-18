@@ -1,4 +1,4 @@
-// Central activity registry consumed by the dashboard and workout flow.
+// Central exercise registry consumed by the dashboard and workout flow.
 import { squatConfig } from "../../exercises/squat/config/exercise.config.js";
 import { pushupConfig } from "../../exercises/push_up/config/exercise.config.js";
 import { deadliftConfig } from "../../exercises/deadlift/config/exercise.config.js";

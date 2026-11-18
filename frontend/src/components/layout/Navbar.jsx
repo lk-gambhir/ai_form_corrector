@@ -14,14 +14,6 @@ export default function Navbar({ activeTab, onSelectTab }) {
         <nav className="nav-tabs" role="tablist">
           <button
             type="button"
-            className={`nav-tab ${activeTab === "activities" || activeTab === "activity" ? "active" : ""}`}
-            onClick={() => onSelectTab("activities")}
-            data-testid="tab-activities"
-          >
-            <span>Activities</span>
-          </button>
-          <button
-            type="button"
             className={`nav-tab ${activeTab === "dashboard" ? "active" : ""}`}
             onClick={() => onSelectTab("dashboard")}
             data-testid="tab-dashboard"
