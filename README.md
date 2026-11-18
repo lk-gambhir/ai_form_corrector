@@ -1,6 +1,8 @@
 # FormGuard AI
 
-FormGuard AI is a real-time squat-form analysis and biomechanics coaching system. It uses a browser camera and MediaPipe Pose Landmarker to track body landmarks, calculate joint angles, detect squat repetitions, evaluate form, and provide corrective feedback.
+FormGuard AI is a real-time activity-based form-analysis and biomechanics coaching system. It uses a browser camera and MediaPipe Pose Landmarker to track body landmarks, calculate joint angles, detect repetitions, evaluate form, and provide corrective feedback.
+
+**Current support:** Squat, Push-up, and Deadlift are selectable activities with separate analysis configurations, progress pages, score rules, and session filtering. Push-up and Deadlift use heuristic angle-cycle detectors and still need representative fixture/live-camera validation before making accuracy claims. Bench Press remains future scope. See [`PROGRESS.md`](./PROGRESS.md) and [`tasks.md`](./tasks.md) for status and remaining validation work.
 
 The project is designed as an exercise-assistance tool. It is not a medical device and does not diagnose injuries or replace a qualified coach or healthcare professional.
 
@@ -9,17 +11,17 @@ The project is designed as an exercise-assistance tool. It is not a medical devi
 The system is designed to:
 
 - Detect a user’s body landmarks from webcam video.
-- Calculate squat-related joint angles.
+- Calculate activity-specific joint angles.
 - Reduce landmark noise through temporal smoothing.
-- Verify that the user is performing a squat-like movement.
-- Count completed squat repetitions.
-- Evaluate depth, torso position, and movement metrics.
+- Verify the selected activity's required landmarks and movement signal.
+- Count completed activity repetitions.
+- Evaluate activity-specific rules and movement metrics.
 - Display real-time feedback while the user exercises.
 - Store structured workout summaries for later review.
 - Create a personal movement baseline through calibration.
 - Provide retrieval-grounded AI coaching with a deterministic fallback.
 
-The current implementation focuses on squats. Deadlift and bench-press analysis are future extensions.
+The app supports Squat, Push-up, and Deadlift as separately configured activities. The Push-up and Deadlift detectors are initial 2D landmark heuristics; representative evaluation fixtures have not yet been added. Bench Press remains future scope.
 
 ## Architecture
 
@@ -32,7 +34,7 @@ MediaPipe Pose Landmarker
   ↓
 Angle calculation and smoothing
   ↓
-Squat state machine
+Selected exercise detector
   ↓
 Repetition and form analysis
   ↓
@@ -57,8 +59,8 @@ It contains:
 - MediaPipe Pose Landmarker integration.
 - 2D joint-angle calculations.
 - Landmark smoothing and visibility handling.
-- Squat repetition state machine.
-- Depth, torso, knee, and tempo analysis.
+- Exercise-specific rep detection and form analysis: squat knee-cycle rules,
+  push-up elbow/body-line rules, and deadlift hip-hinge/lockout proxies.
 - Canvas-based skeleton and feedback rendering.
 - Calibration workflow.
 - Workout history and dashboard views.
@@ -80,20 +82,16 @@ It is responsible for:
 - Personal calibration storage.
 - RAG-based coaching and deterministic fallback coaching.
 
-### Shared Configuration
+### Exercise Modules
 
-The `shared/exercise-config` directory contains squat-specific definitions shared by the analysis system, including:
+Each exercise owns a module under `exercises/<exercise>/` with separate
+`frontend/`, `backend/`, and `config/` folders. The shared frontend registry at
+`shared/exercise-config/index.js` connects the app to each module. The outer
+`frontend/` and `backend/` folders stay responsible for shared navigation,
+camera/session orchestration, APIs, authentication, and persistence. Shared
+landmark indexes and data contracts remain in `shared/exercise-config/`.
 
-- Landmark indexes.
-- Rule identifiers.
-- Squat thresholds.
-- Feedback cues.
-- Score weights.
-- Shared data-shape documentation.
-
-Keeping these values centralized reduces disagreement between the frontend analysis and backend validation.
-
-## Squat Analysis Pipeline
+## Exercise Analysis Pipeline
 
 Each camera frame follows this process:
 
@@ -119,7 +117,7 @@ Form rules and metrics
 Feedback selection
 ```
 
-The repetition detector uses a state machine:
+Squat uses a specialized bilateral knee-angle state machine:
 
 ```text
 STANDING → DESCENDING → BOTTOM → ASCENDING → STANDING
@@ -128,6 +126,30 @@ STANDING → DESCENDING → BOTTOM → ASCENDING → STANDING
 A repetition is committed only after the user returns to the standing state. This prevents incomplete movements from being counted as completed repetitions.
 
 Repetition detection and form evaluation are separate. A shallow squat may count as a completed movement while still receiving a depth warning.
+
+### Push-up and Deadlift detection
+
+Push-up and Deadlift use the shared `ActivityStateMachine` through separate
+exercise-owned adapters. It visibility-checks the configured landmarks, waits
+for three stable frames at transitions, requires enough signal excursion, and
+counts a rep after the signal returns to the start range. They share this
+cycle algorithm, but their config supplies different joints and thresholds:
+
+- **Push-up:** uses the shoulder–elbow–wrist angle. The elbow angle moves from
+  the top range (about 145°) through the bottom threshold (about 105°) and
+  returns to the top. Shoulder–hip–ankle alignment is also required/measured
+  for the body-line rule. The initial thresholds are heuristics, not yet
+  validated against push-up fixture ground truth.
+- **Deadlift:** uses the shoulder–hip–knee angle directly. It decreases from
+  upright lockout (start threshold about 145°) to the hinge/setup excursion
+  (about 100°), then returns upward. The configured rules check a hip-angle
+  lockout proxy and movement range; the camera model does not see bar path or
+  estimate 3D spinal loading. These thresholds also need fixture validation.
+
+Squat has a dedicated state sequence and averages the available left/right
+knee angles; Push-up and Deadlift currently share a simpler one-signal
+lowering/turnaround/return cycle. This is why the new detectors are separate
+exercise adapters but not yet independently validated algorithms.
 
 ## Metrics
 
@@ -247,9 +269,13 @@ If Gemini is unavailable or no API key is configured, deterministic coaching rul
 ## Project Structure
 
 ```text
-frontend/                 React UI, camera, pose analysis, dashboard
-backend/                  FastAPI API, database, authentication, coaching
-shared/exercise-config/   Shared exercise rules and landmark definitions
+frontend/                 Shared React UI, camera/session shell, APIs, dashboard
+backend/                  Shared FastAPI API, database, authentication, coaching
+shared/exercise-config/   Activity registry, shared contracts, landmarks
+exercises/
+  squat/{frontend,backend,config}/     Squat detector, score rules, config
+  push_up/{frontend,backend,config}/   Push-up detector, score rules, config
+  deadlift/{frontend,backend,config}/  Deadlift detector, score rules, config
 data/                     Video sources and project data
 journals/                 Development journals
 ```
@@ -319,4 +345,4 @@ http://localhost:8000/docs
 - Calibration requires enough visible movement data.
 - The RAG knowledge base is curated and relatively small.
 - AI coaching is educational feedback, not medical advice.
-- Deadlift and bench-press analysis are not implemented yet.
+- Push-up and Deadlift need broader validation data; Bench Press analysis is not implemented.

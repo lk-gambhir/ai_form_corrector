@@ -1,9 +1,10 @@
-# Backend — Squat Form Analyzer API
+# Backend — FormGuard AI API
 
 FastAPI + SQLite backend: auth, session storage, dashboard aggregation, and
-calibration baselines for the squat form-analysis app. Receives only
-numeric/structured session summaries from the frontend — **no video or
-image data ever reaches this service.**
+calibration baselines for the activity-based app. Session creation accepts
+Squat, Push-up, and Deadlift with exercise-specific issue validation and score
+weights. Receives only numeric/structured session summaries from the frontend
+— **no video or image data reaches this service.**
 
 ## Setup
 
@@ -19,7 +20,7 @@ python3.13 -m venv .venv        # or your Python 3.11+ interpreter
 
 ```bash
 cd backend
-.venv/bin/uvicorn app.main:app --reload --port 8000
+PYTHONPATH=.. .venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
 - API base: `http://localhost:8000/api`
@@ -49,12 +50,14 @@ prefixed `APP_`, or a `backend/.env` file (gitignored). Key ones:
 
 ```bash
 cd backend
-.venv/bin/pytest          # or: .venv/bin/pytest -q
+PYTHONPATH=.. .venv/bin/pytest          # or: PYTHONPATH=.. .venv/bin/pytest -q
 ```
 
 All tests run against an **in-memory SQLite** database (see
 `app/tests/conftest.py`) via a FastAPI dependency override — they never
-touch `backend/data/app.db`. Current status: **43/43 passing**.
+touch `backend/data/app.db`. Historical documentation recorded 43 passing
+tests, but this count has not been rerun for the current documentation update;
+use current test output when reporting verification.
 
 ## Layout
 
@@ -83,6 +86,10 @@ app/
     test_dashboard.py
     test_calibration.py
     test_form_score.py
+exercises/
+  squat/backend/scoring.py       Squat score weights and issue IDs
+  push_up/backend/scoring.py     Push-up score weights and issue IDs
+  deadlift/backend/scoring.py    Deadlift score weights and issue IDs
 ```
 
 ## Data contract with the frontend
