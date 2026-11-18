@@ -80,6 +80,7 @@ def compute_summary(sessions: list[Session]) -> dict:
 
     ordered = _sorted_by_started_at(sessions)
     all_reps = [rep for s in sessions for rep in s.reps]
+    one_exercise = len({session.exercise for session in sessions}) == 1
 
     return {
         "total_sessions": len(sessions),
@@ -87,8 +88,8 @@ def compute_summary(sessions: list[Session]) -> dict:
         "best_form_score": max(s.form_score for s in sessions),
         "recent_form_score": ordered[-1].form_score,
         "avg_form_score": round(mean(s.form_score for s in sessions), 4),
-        "avg_rom": round(mean(r.rom_value for r in all_reps), 4) if all_reps else None,
-        "avg_tempo": round(mean(r.tempo for r in all_reps), 4) if all_reps else None,
+        "avg_rom": round(mean(r.rom_value for r in all_reps), 4) if all_reps and one_exercise else None,
+        "avg_tempo": round(mean(r.tempo for r in all_reps), 4) if all_reps and one_exercise else None,
         "improvement": compute_improvement(sessions),
         "most_common_issues": compute_most_common_issues(sessions),
     }

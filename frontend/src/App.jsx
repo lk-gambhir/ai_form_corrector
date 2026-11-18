@@ -6,25 +6,56 @@ import WorkoutPage from "@/pages/WorkoutPage.jsx";
 import CalibrationPage from "@/pages/CalibrationPage.jsx";
 import DashboardPage from "@/pages/DashboardPage.jsx";
 import HistoryPage from "@/pages/HistoryPage.jsx";
+import ActivitiesPage from "@/pages/ActivitiesPage.jsx";
+import ActivityPage from "@/pages/ActivityPage.jsx";
+import { getExerciseConfig } from "@shared/exercise-config/index.js";
 import Navbar from "@/components/layout/Navbar.jsx";
 import Footer from "@/components/layout/Footer.jsx";
+
+const VALID_TABS = ["dashboard", "activities", "activity", "workout", "calibration", "history"];
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === "undefined") return "dashboard";
     const urlTab = new URLSearchParams(window.location.search).get("tab");
-    if (urlTab) return urlTab;
+    if (VALID_TABS.includes(urlTab)) return urlTab;
     const storedTab = localStorage.getItem("activeTab");
-    if (storedTab) return storedTab;
+    if (VALID_TABS.includes(storedTab)) return storedTab;
     return "dashboard";
   });
+  const [activityId, setActivityId] = useState(() => {
+    try { return localStorage.getItem("activeActivity") || "squat"; } catch (_) { return "squat"; }
+  });
+  const [selectedExerciseId, setSelectedExerciseId] = useState(() => {
+    try { return localStorage.getItem("selectedExercise") || ""; } catch (_) { return ""; }
+  });
+  const [workoutLocked, setWorkoutLocked] = useState(false);
 
   const handleSelectTab = (tab) => {
-    setActiveTab(tab);
+    if (workoutLocked && tab !== "workout") return;
+    if (typeof tab !== "string" || (!VALID_TABS.includes(tab) && !tab.startsWith("activity:"))) return;
+    let nextTab = tab;
+    if (tab.startsWith("activity:")) {
+      const nextActivityId = tab.split(":")[1];
+      if (!getExerciseConfig(nextActivityId)) return;
+      setActivityId(nextActivityId);
+      try { localStorage.setItem("activeActivity", nextActivityId); } catch (_) {}
+      nextTab = "activity";
+    }
+    setActiveTab(nextTab);
     try {
-      localStorage.setItem("activeTab", tab);
+      localStorage.setItem("activeTab", nextTab);
     } catch (_) {}
+  };
+
+  const chooseWorkoutExercise = (exerciseId) => {
+    setSelectedExerciseId(exerciseId);
+    try { localStorage.setItem("selectedExercise", exerciseId); } catch (_) {}
+  };
+  const startActivityWorkout = (exerciseId) => {
+    chooseWorkoutExercise(exerciseId);
+    handleSelectTab("workout");
   };
 
   // Mandatory Google OAuth Login Gate.
@@ -37,7 +68,16 @@ function AppContent() {
       <Navbar activeTab={activeTab} onSelectTab={handleSelectTab} />
       <main className="app-main-content">
         {activeTab === "dashboard" && <DashboardPage onNavigate={handleSelectTab} />}
-        {activeTab === "workout" && <WorkoutPage onNavigate={handleSelectTab} />}
+        {activeTab === "activities" && <ActivitiesPage onNavigate={handleSelectTab} />}
+        {activeTab === "activity" && (getExerciseConfig(activityId) ? (
+          <ActivityPage
+            key={activityId}
+            exercise={getExerciseConfig(activityId)}
+            onBack={() => handleSelectTab("activities")}
+            onStartWorkout={startActivityWorkout}
+          />
+        ) : <ActivitiesPage onNavigate={handleSelectTab} />)}
+        {activeTab === "workout" && <WorkoutPage initialExerciseId={selectedExerciseId} onExerciseChange={chooseWorkoutExercise} onWorkoutLockChange={setWorkoutLocked} />}
         {activeTab === "calibration" && <CalibrationPage onNavigate={handleSelectTab} />}
         {activeTab === "history" && <HistoryPage onNavigate={handleSelectTab} />}
       </main>

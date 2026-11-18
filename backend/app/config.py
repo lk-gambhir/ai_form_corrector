@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # AI Coaching / LLM settings
     gemini_api_key: str = ""
-    coaching_model: str = "gemini-1.5-flash"
+    coaching_model: str = "gemini-2.5-flash"
 
     @model_validator(mode="after")
     def validate_production_secret(self):

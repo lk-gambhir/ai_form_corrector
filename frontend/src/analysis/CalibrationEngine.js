@@ -14,9 +14,15 @@ export function euclideanDistance(p1, p2) {
 const MIN_VISIBILITY = 0.5;
 
 export class CalibrationEngine {
-  constructor() {
+  constructor(exercise = "squat") {
+    this.exercise = exercise;
     this.standingFrames = [];
     this.bottomFrames = [];
+  }
+
+  setExercise(exercise) {
+    this.exercise = exercise;
+    this.reset();
   }
 
   // Adds a standing pose frame for limb ratio and standing angle calibration.
@@ -67,7 +73,7 @@ export class CalibrationEngine {
       }
     }
 
-    if (validCount === 0) return { femurToTorso: 1.0, shinToTorso: 0.9 };
+    if (validCount === 0) return { femurToTorso: Number.NaN, shinToTorso: Number.NaN };
     return {
       femurToTorso: Number((totalFemurToTorso / validCount).toFixed(3)),
       shinToTorso: Number((totalShinToTorso / validCount).toFixed(3)),
@@ -76,6 +82,56 @@ export class CalibrationEngine {
 
   // Computes baseline range of motion angles.
   computeBaselineRom() {
+    const avg = (arr, fallback = Number.NaN) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : fallback);
+
+    if (this.exercise === "push_up") {
+      const calcElbowAngle = (lm) => {
+        const side = (lm[POSE_LANDMARKS.LEFT_ELBOW]?.visibility ?? 0) >= (lm[POSE_LANDMARKS.RIGHT_ELBOW]?.visibility ?? 0) ? "LEFT" : "RIGHT";
+        return jointAngle2D(
+          lm[POSE_LANDMARKS[`${side}_SHOULDER`]],
+          lm[POSE_LANDMARKS[`${side}_ELBOW`]],
+          lm[POSE_LANDMARKS[`${side}_WRIST`]]
+        );
+      };
+      const calcBodyLine = (lm) => {
+        const side = (lm[POSE_LANDMARKS.LEFT_HIP]?.visibility ?? 0) >= (lm[POSE_LANDMARKS.RIGHT_HIP]?.visibility ?? 0) ? "LEFT" : "RIGHT";
+        return jointAngle2D(
+          lm[POSE_LANDMARKS[`${side}_SHOULDER`]],
+          lm[POSE_LANDMARKS[`${side}_HIP`]],
+          lm[POSE_LANDMARKS[`${side}_ANKLE`]]
+        );
+      };
+      const topElbows = this.standingFrames.map(calcElbowAngle).filter((a) => !Number.isNaN(a));
+      const bottomElbows = this.bottomFrames.map(calcElbowAngle).filter((a) => !Number.isNaN(a));
+      const bodyLines = this.standingFrames.map(calcBodyLine).filter((a) => !Number.isNaN(a));
+
+      return {
+        exercise: "push_up",
+        elbowTop: Number(avg(topElbows).toFixed(1)),
+        elbowBottom: Number(avg(bottomElbows).toFixed(1)),
+        bodyLineDeg: Number(avg(bodyLines).toFixed(1)),
+      };
+    }
+
+    if (this.exercise === "deadlift") {
+      const calcHipAngle = (lm) => {
+        const side = (lm[POSE_LANDMARKS.LEFT_HIP]?.visibility ?? 0) >= (lm[POSE_LANDMARKS.RIGHT_HIP]?.visibility ?? 0) ? "LEFT" : "RIGHT";
+        return jointAngle2D(
+          lm[POSE_LANDMARKS[`${side}_SHOULDER`]],
+          lm[POSE_LANDMARKS[`${side}_HIP`]],
+          lm[POSE_LANDMARKS[`${side}_KNEE`]]
+        );
+      };
+      const lockoutHips = this.standingFrames.map(calcHipAngle).filter((a) => !Number.isNaN(a));
+      const setupHips = this.bottomFrames.map(calcHipAngle).filter((a) => !Number.isNaN(a));
+
+      return {
+        exercise: "deadlift",
+        hipLockout: Number(avg(lockoutHips).toFixed(1)),
+        hipSetup: Number(avg(setupHips).toFixed(1)),
+      };
+    }
+
     const calcKneeAngle = (lm) => {
       const side = (lm[POSE_LANDMARKS.LEFT_KNEE]?.visibility ?? 0) >= (lm[POSE_LANDMARKS.RIGHT_KNEE]?.visibility ?? 0) ? "LEFT" : "RIGHT";
       return jointAngle2D(
@@ -99,13 +155,12 @@ export class CalibrationEngine {
     const standingHips = this.standingFrames.map(calcHipAngle).filter((a) => !Number.isNaN(a));
     const bottomHips = this.bottomFrames.map(calcHipAngle).filter((a) => !Number.isNaN(a));
 
-    const avg = (arr, fallback) => (arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : fallback);
-
     return {
-      kneeStanding: Number(avg(standingKnees, 170).toFixed(1)),
-      kneeBottom: Number(avg(bottomKnees, 85).toFixed(1)),
-      hipStanding: Number(avg(standingHips, 168).toFixed(1)),
-      hipBottom: Number(avg(bottomHips, 90).toFixed(1)),
+      exercise: "squat",
+      kneeStanding: Number(avg(standingKnees).toFixed(1)),
+      kneeBottom: Number(avg(bottomKnees).toFixed(1)),
+      hipStanding: Number(avg(standingHips).toFixed(1)),
+      hipBottom: Number(avg(bottomHips).toFixed(1)),
     };
   }
 
@@ -158,23 +213,47 @@ export class CalibrationEngine {
 
   // Finalizes and returns complete UserBaseline object.
   generateBaseline() {
-    const limbRatios = this.computeLimbRatios();
+    if (!this.standingFrames.length || !this.bottomFrames.length) {
+      throw new Error("Capture both calibration positions before saving a profile.");
+    }
     const rom = this.computeBaselineRom();
-    const typicalTorsoLean = this.computeTorsoLean();
+    if (Object.values(rom).some((value) => typeof value === "number" && !Number.isFinite(value))) {
+      throw new Error("Calibration measurements are incomplete. Improve visibility and capture both positions again.");
+    }
+    const isSquat = this.exercise === "squat";
+    const limbRatios = isSquat ? this.computeLimbRatios() : {};
+    if (Object.values(limbRatios).some((value) => !Number.isFinite(value))) {
+      throw new Error("Calibration measurements are incomplete. Improve visibility and capture both positions again.");
+    }
+    const typicalTorsoLean = isSquat ? this.computeTorsoLean() : null;
 
-    // Include torso lean in rom and angleStats if computed
     if (typicalTorsoLean != null) {
       rom.typicalTorsoLean = typicalTorsoLean;
     }
 
-    return {
-      limbRatios,
-      rom,
-      angleStats: {
+    let angleStats = {};
+    if (this.exercise === "push_up") {
+      angleStats = {
+        elbow: { mean: (rom.elbowTop + rom.elbowBottom) / 2, std: (rom.elbowTop - rom.elbowBottom) / 4 },
+        body_line: { mean: rom.bodyLineDeg, std: 2.0 },
+      };
+    } else if (this.exercise === "deadlift") {
+      angleStats = {
+        hip: { mean: (rom.hipLockout + rom.hipSetup) / 2, std: (rom.hipLockout - rom.hipSetup) / 4 },
+      };
+    } else {
+      angleStats = {
         knee: { mean: (rom.kneeStanding + rom.kneeBottom) / 2, std: (rom.kneeStanding - rom.kneeBottom) / 4 },
         hip: { mean: (rom.hipStanding + rom.hipBottom) / 2, std: (rom.hipStanding - rom.hipBottom) / 4 },
         ...(typicalTorsoLean != null ? { typical_torso_lean: typicalTorsoLean } : {}),
-      },
+      };
+    }
+
+    return {
+      exercise: this.exercise,
+      limbRatios,
+      rom,
+      angleStats,
       calibratedAt: new Date().toISOString(),
     };
   }

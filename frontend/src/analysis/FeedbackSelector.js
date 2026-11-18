@@ -12,7 +12,10 @@ export class FeedbackSelector {
     const now = Date.now();
     const failedRules = ruleResults.filter((r) => !r.pass);
     const severityMap = { high: 3, medium: 2, low: 1 };
-    failedRules.sort((a, b) => severityMap[b.severity] - severityMap[a.severity]);
+    failedRules.sort((a, b) =>
+      (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER)
+      || severityMap[b.severity] - severityMap[a.severity]
+    );
 
     const highestPriority = failedRules[0];
 

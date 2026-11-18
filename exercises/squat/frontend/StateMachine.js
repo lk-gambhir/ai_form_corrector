@@ -1,6 +1,6 @@
 // Config-driven rep-counting finite state machine for squats.
-import { LANDMARK_COUNT, POSE_LANDMARKS } from "@shared/exercise-config/landmarks.js";
-import { computeAngles, landmarkVisibleEnough } from "@/pose/angles.js";
+import { LANDMARK_COUNT, POSE_LANDMARKS } from "../../../shared/exercise-config/landmarks.js";
+import { computeAngles, landmarkVisibleEnough } from "../../../frontend/src/pose/angles.js";
 
 // Checks if all points of an angle definition meet visibility threshold.
 function tripletVisible(landmarks, angleDef, visibilityThreshold) {
@@ -41,6 +41,7 @@ export class SquatStateMachine {
     this._pendingCount = 0;
     this._transitionLog = [];
     this._reps = [];
+    this._invalidSinceMs = null;
 
     this._resetInProgressRep();
   }
@@ -102,14 +103,24 @@ export class SquatStateMachine {
 
   // Advances the state machine with one frame of landmarks.
   update({ landmarks, timestampMs }) {
-    if (!Array.isArray(landmarks) || landmarks.length < LANDMARK_COUNT) {
+    if (!Number.isFinite(timestampMs)) {
       return;
     }
 
-    const angle = this._resolveSignal(landmarks);
-    if (Number.isNaN(angle)) {
+    const angle = Array.isArray(landmarks) && landmarks.length >= LANDMARK_COUNT
+      ? this._resolveSignal(landmarks)
+      : Number.NaN;
+    if (!Number.isFinite(angle)) {
+      this._pendingTarget = null;
+      this._pendingCount = 0;
+      this._invalidSinceMs ??= timestampMs;
+      if (this.state !== this._startState && timestampMs - this._invalidSinceMs > 1200) {
+        this.state = this._startState;
+        this._resetInProgressRep();
+      }
       return;
     }
+    this._invalidSinceMs = null;
 
     // Track frame samples into active rep.
     if (this.state !== this._startState) {
@@ -200,6 +211,7 @@ export class SquatStateMachine {
     this._pendingCount = 0;
     this._transitionLog = [];
     this._reps = [];
+    this._invalidSinceMs = null;
     this._resetInProgressRep();
   }
 }

@@ -1,23 +1,41 @@
 // Orchestrates frame analysis: LandmarkSmoother -> SquatStateMachine -> FormRuleEngine -> MetricsEngine -> FeedbackSelector.
 import { LandmarkSmoother } from "@/pose/LandmarkSmoother.js";
-import { SquatStateMachine } from "@/analysis/SquatStateMachine.js";
 import { FormRuleEngine } from "@/analysis/FormRuleEngine.js";
 import { MetricsEngine } from "@/analysis/MetricsEngine.js";
 import { FeedbackSelector } from "@/analysis/FeedbackSelector.js";
-import { squatConfig } from "@shared/exercise-config/squat.config.js";
+import { squatConfig, getExerciseConfig } from "@shared/exercise-config/index.js";
+import { SquatStateMachine } from "../../../exercises/squat/frontend/StateMachine.js";
+import { PushUpStateMachine } from "../../../exercises/push_up/frontend/StateMachine.js";
+import { DeadliftStateMachine } from "../../../exercises/deadlift/frontend/StateMachine.js";
+
+const DETECTORS_BY_EXERCISE = Object.freeze({
+  squat: SquatStateMachine,
+  push_up: PushUpStateMachine,
+  deadlift: DeadliftStateMachine,
+});
 
 export class AnalysisPipeline {
-  constructor() {
+  constructor(config = squatConfig) {
+    this.config = config;
     this.smoother = new LandmarkSmoother();
-    this.machine = new SquatStateMachine(squatConfig);
-    this.ruleEngine = new FormRuleEngine(squatConfig);
+    const Detector = DETECTORS_BY_EXERCISE[config.id];
+    if (!Detector || !getExerciseConfig(config.id)) throw new Error(`Unsupported exercise config: ${config.id}`);
+    this.machine = new Detector(config);
+    this.ruleEngine = new FormRuleEngine(config);
     this.metricsEngine = new MetricsEngine();
     this.feedbackSelector = new FeedbackSelector();
   }
 
   // Configures pipeline with calibrated user baseline ROM thresholds.
   setBaseline(baseline) {
-    if (!baseline?.rom) return;
+    if (baseline?.exercise && baseline.exercise !== this.config.id) {
+      this.ruleEngine.setBaseline(baseline);
+      return;
+    }
+    if (!baseline?.rom) {
+      this.ruleEngine.setBaseline(null);
+      return;
+    }
     this.ruleEngine.setBaseline(baseline);
 
     const { kneeStanding, kneeBottom } = baseline.rom;

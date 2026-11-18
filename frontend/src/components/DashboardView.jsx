@@ -2,23 +2,31 @@
 import { useEffect, useState } from "react";
 import { getDashboardSummary } from "@/api/dashboardApi.js";
 import { getSessions } from "@/api/sessionApi.js";
+import ActivityCard from "@/components/ActivityCard.jsx";
+import { listSupportedExercises } from "@shared/exercise-config/index.js";
 
 export default function DashboardView({ onNavigate }) {
   const [summary, setSummary] = useState(null);
   const [sessions, setSessions] = useState([]);
+  const [activitySummaries, setActivitySummaries] = useState({});
 
   useEffect(() => {
     let mounted = true;
 
     async function loadData() {
       try {
-        const [sumRes, sessRes] = await Promise.allSettled([
+        const activities = listSupportedExercises();
+        const [sumRes, sessRes, ...activityResults] = await Promise.allSettled([
           getDashboardSummary(),
           getSessions({ limit: 5 }),
+          ...activities.map((exercise) => getDashboardSummary(exercise.id)),
         ]);
         if (!mounted) return;
         if (sumRes.status === "fulfilled") setSummary(sumRes.value);
         if (sessRes.status === "fulfilled") setSessions(sessRes.value || []);
+        setActivitySummaries(Object.fromEntries(activities.flatMap((exercise, index) =>
+          activityResults[index]?.status === "fulfilled" ? [[exercise.id, activityResults[index].value]] : []
+        )));
       } catch (_) {}
     }
 
@@ -34,7 +42,7 @@ export default function DashboardView({ onNavigate }) {
       <section className="hero-banner" data-testid="hero-banner">
         <div className="hero-content">
           <div className="hero-brand-tag">
-            <span>AI KINEMATICS // SQUAT FORM ANALYZER</span>
+            <span>FORMGUARD AI // MOVEMENT ANALYSIS</span>
           </div>
 
           <h1 className="hero-title">
@@ -42,7 +50,7 @@ export default function DashboardView({ onNavigate }) {
           </h1>
 
           <p className="hero-subtitle">
-            Empower yourself to make the changes you need to make. Real-time computer vision joint tracking, parallel depth validation, and instant biomechanical feedback.
+            Choose an activity, train with live movement feedback, and follow progress on activity-specific dashboards.
           </p>
 
           <div className="hero-actions">
@@ -96,22 +104,40 @@ export default function DashboardView({ onNavigate }) {
             <span className="card-value" data-testid="stat-total-reps">
               {summary?.total_reps ?? 0}
             </span>
-            <span className="stat-meta">Analyzed squat reps</span>
+            <span className="stat-meta">Across recorded activities</span>
           </div>
 
           <div className="stat-card accent-card">
             <div className="stat-card-top">
-              <span className="card-label">Average Score</span>
+            <span className="card-label">Activity Types</span>
               <span className="stat-icon-wrap">
               </span>
             </div>
             <span className="card-value" data-testid="stat-avg-score">
-              {summary?.avg_form_score != null ? `${Math.round(summary.avg_form_score)}%` : "—"}
+              {listSupportedExercises().length}
             </span>
-            <span className="stat-meta">
-              {summary?.avg_form_score != null ? "Form precision average" : "Ready for first set"}
-            </span>
+            <span className="stat-meta">Scores and trends tracked separately</span>
           </div>
+        </div>
+      </section>
+
+      <section className="activity-overview-section">
+        <div className="section-header-wrap">
+          <div>
+            <h2 className="section-title"><span>Your Activities</span></h2>
+            <p className="subtitle">Open an activity to see its own sessions, scores, and progress.</p>
+          </div>
+          <button type="button" className="section-tag section-tag-button" onClick={() => onNavigate?.("activities")}>All activities →</button>
+        </div>
+        <div className="activity-grid">
+          {listSupportedExercises().map((exercise) => (
+            <ActivityCard
+              key={exercise.id}
+              exercise={exercise}
+              summary={activitySummaries[exercise.id]}
+              onClick={() => onNavigate?.(`activity:${exercise.id}`)}
+            />
+          ))}
         </div>
       </section>
 

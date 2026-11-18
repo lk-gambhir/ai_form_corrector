@@ -23,6 +23,7 @@ class RetrievedPassage:
     passage: str
     topic: str
     recommendations: list[str]
+    source_url: str | None = None
 
 
 def _tokenize(text: str) -> list[str]:
@@ -147,8 +148,18 @@ class BiomechanicsKnowledgeRetriever:
                 q_norm_sq += weight * weight
         q_norm = math.sqrt(q_norm_sq) or 1.0
 
+        target_exercise = exercise.lower()
+        candidate_indices = [
+            idx for idx, doc in enumerate(self.documents)
+            if doc.get("exercise", "squat").lower() == target_exercise
+        ]
+        if not candidate_indices:
+            return []
+
         scores: list[tuple[float, int]] = []
-        for idx, (dvec, dnorm) in enumerate(zip(self.doc_vectors, self.doc_norms)):
+        for idx in candidate_indices:
+            dvec = self.doc_vectors[idx]
+            dnorm = self.doc_norms[idx]
             dot_product = sum(weight * dvec.get(term, 0.0) for term, weight in query_vec.items())
             cosine_sim = dot_product / (q_norm * dnorm) if dnorm > 0 else 0.0
 
@@ -167,6 +178,15 @@ class BiomechanicsKnowledgeRetriever:
         # Sort descending by score
         scores.sort(key=lambda x: x[0], reverse=True)
 
+        # For newer activities, return issue-specific guidance when it exists.
+        if target_exercise in {"push_up", "deadlift"} and exact_issue_topics:
+            matching = [
+                item for item in scores
+                if self.documents[item[1]].get("topic") in exact_issue_topics
+            ]
+            if matching:
+                scores = matching
+
         results: list[RetrievedPassage] = []
         for score, idx in scores[:top_k]:
             doc = self.documents[idx]
@@ -178,6 +198,7 @@ class BiomechanicsKnowledgeRetriever:
                     passage=doc.get("content", ""),
                     topic=doc.get("topic", ""),
                     recommendations=doc.get("recommendations", []),
+                    source_url=doc.get("source_url"),
                 )
             )
 

@@ -11,7 +11,7 @@ first failure found.
 from fastapi import HTTPException, status
 
 from app.schemas import SessionCreateRequest
-from app.services.form_score import is_within_tolerance
+from app.services.form_score import ISSUE_IDS_BY_EXERCISE, get_score_weights, is_within_tolerance
 
 
 def validate_session_payload(payload: SessionCreateRequest) -> float:
@@ -66,7 +66,20 @@ def validate_session_payload(payload: SessionCreateRequest) -> float:
                 ),
             )
 
-    ok, server_score = is_within_tolerance(payload.form_score, payload.reps, payload.form_issues)
+    allowed_issue_ids = ISSUE_IDS_BY_EXERCISE[payload.exercise]
+    for issue in payload.form_issues:
+        if issue.issue_type not in allowed_issue_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"issue_type '{issue.issue_type}' is not valid for exercise '{payload.exercise}'",
+            )
+
+    ok, server_score = is_within_tolerance(
+        payload.form_score,
+        payload.reps,
+        payload.form_issues,
+        weights=get_score_weights(payload.exercise),
+    )
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

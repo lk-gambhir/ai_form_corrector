@@ -7,24 +7,46 @@ where `p_i` is the PASS RATE of rule `i` across all reps in the session
 (fraction of reps with NO issue of that `issue_type`/rule id logged against
 them), and `w_i` are fixed weights summing to 1.0.
 
-DEFAULT_SCORE_WEIGHTS below is the Python mirror of the frontend's
-`squat.config.js` `scoreWeights` block (see `shared/exercise-config/types.js`
--> `ExerciseConfig.scoreWeights`, `Record<RuleId, number>` where
-`RuleId = "depth" | "knee_valgus" | "torso_lean" | "tempo"`). Python cannot
-import the JS config directly, so **these two blocks must be kept in sync by
-hand** — if the frontend changes a weight, update the constant below to
-match, or server-side score recomputation (and its tolerance check) will
-start disagreeing with the client for no code reason.
+The frontend exercise config and Python exercise score module each declare
+score weights. Python cannot import the JavaScript config, so corresponding
+`exercises/<id>/config/exercise.config.js` and
+`exercises/<id>/backend/scoring.py` values must be kept in sync. The shared
+registry below imports the server-owned weights and issue IDs for validation.
 """
 from dataclasses import dataclass
 
-# Must sum to 1.0; keep in sync with frontend squat.config.js scoreWeights.
-DEFAULT_SCORE_WEIGHTS: dict[str, float] = {
-    "depth": 0.35,
-    "knee_valgus": 0.25,
-    "torso_lean": 0.25,
-    "tempo": 0.15,
+from exercises.deadlift.backend.scoring import (
+    EXERCISE_ID as DEADLIFT_ID,
+    ISSUE_IDS as DEADLIFT_ISSUES,
+    SCORE_WEIGHTS as DEADLIFT_WEIGHTS,
+)
+from exercises.push_up.backend.scoring import (
+    EXERCISE_ID as PUSH_UP_ID,
+    ISSUE_IDS as PUSH_UP_ISSUES,
+    SCORE_WEIGHTS as PUSH_UP_WEIGHTS,
+)
+from exercises.squat.backend.scoring import (
+    EXERCISE_ID as SQUAT_ID,
+    ISSUE_IDS as SQUAT_ISSUES,
+    SCORE_WEIGHTS as SQUAT_WEIGHTS,
+)
+
+# Must sum to 1.0 per exercise; keep in sync with that exercise's JS config.
+SCORE_WEIGHTS_BY_EXERCISE: dict[str, dict[str, float]] = {
+    SQUAT_ID: SQUAT_WEIGHTS,
+    PUSH_UP_ID: PUSH_UP_WEIGHTS,
+    DEADLIFT_ID: DEADLIFT_WEIGHTS,
 }
+DEFAULT_SCORE_WEIGHTS: dict[str, float] = SCORE_WEIGHTS_BY_EXERCISE["squat"]
+ISSUE_IDS_BY_EXERCISE: dict[str, set[str]] = {
+    SQUAT_ID: set(SQUAT_ISSUES),
+    PUSH_UP_ID: set(PUSH_UP_ISSUES),
+    DEADLIFT_ID: set(DEADLIFT_ISSUES),
+}
+
+
+def get_score_weights(exercise: str) -> dict[str, float]:
+    return SCORE_WEIGHTS_BY_EXERCISE[exercise]
 
 # +/- points of slack allowed between the client-submitted form_score and the
 # server's independent recomputation before we reject the session as
@@ -54,14 +76,12 @@ def compute_form_score(
     exposing `.rep_number` (and `.issue_type` for issues) — duck-typed so the
     same function works against request payloads and DB rows.
     """
-    weights = weights or DEFAULT_SCORE_WEIGHTS
+    weights = DEFAULT_SCORE_WEIGHTS if weights is None else weights
     total_reps = len(reps)
 
     if total_reps == 0:
-        # No reps logged: nothing to score. Treat as a perfect (unpenalized)
-        # score rather than an arbitrary failure — validation.py is
-        # responsible for deciding whether a zero-rep session is allowed at
-        # all.
+        # Standalone callers may ask for a score before reps exist; persisted
+        # session requests require at least one rep in the request schema.
         return 100.0
 
     failing_rep_numbers_by_rule: dict[str, set[int]] = {rule: set() for rule in weights}

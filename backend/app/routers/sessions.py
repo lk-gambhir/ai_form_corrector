@@ -12,6 +12,7 @@ from app.models import FormIssue, Rep, Session as SessionModel, User
 from app.schemas import SessionCreateRequest, SessionListItem, SessionResponse
 from app.security import get_current_user
 from app.services.validation import validate_session_payload
+from app.services.form_score import SCORE_WEIGHTS_BY_EXERCISE
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -69,10 +70,15 @@ def list_sessions(
     db: DBSession = Depends(get_db),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    exercise: str | None = Query(default=None),
 ):
+    if exercise is not None and exercise not in SCORE_WEIGHTS_BY_EXERCISE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported exercise")
+    query = db.query(SessionModel).filter(SessionModel.user_id == current_user.id)
+    if exercise is not None:
+        query = query.filter(SessionModel.exercise == exercise)
     return (
-        db.query(SessionModel)
-        .filter(SessionModel.user_id == current_user.id)
+        query
         .order_by(SessionModel.started_at.desc())
         .offset(offset)
         .limit(limit)

@@ -102,5 +102,95 @@
       "Consult a qualified physical therapist or sports medicine professional if pain persists.",
       "Never attempt to push through sharp joint discomfort or numbness."
     ]
+  },
+  {
+    "id": "pushup_depth_rom",
+    "title": "Push-Up Elbow Range and Depth Standards",
+    "topic": "range_of_motion",
+    "exercise": "push_up",
+    "citation": "US Army ATP 7-22.01 & NASM Exercise Library",
+    "source_url": "https://www.armyresilience.army.mil/ard/images/pdf/Policy/ARN35869-ATP_7-22.01-002-WEB-5.pdf",
+    "keywords": ["range_of_motion", "depth", "elbow_angle", "elbow", "rom", "shallow", "parallel", "push_up"],
+    "content": "Standard push-up depth requires lowering the body until the upper arms are at least parallel to the floor, corresponding to an elbow flexion angle of approximately 90 degrees or less. Reversing before reaching this threshold reduces triceps and anterior deltoid engagement through the intended range. Maintain a smooth descent and press through the palms to full lockout without hyperextending.",
+    "recommendations": [
+      "Lower until your upper arms reach parallel with the floor (approx. 90° elbow bend).",
+      "Practice chest-to-pad or incline push-ups if full floor range is difficult to sustain.",
+      "Focus on controlled 2-second lowering before pressing up explosively."
+    ]
+  },
+  {
+    "id": "pushup_body_alignment",
+    "title": "Push-Up Trunk Rigidity and Shoulder-Hip-Ankle Alignment",
+    "topic": "body_alignment",
+    "exercise": "push_up",
+    "citation": "US Army ATP 7-22.01",
+    "source_url": "https://www.armyresilience.army.mil/ard/images/pdf/Policy/ARN35869-ATP_7-22.01-002-WEB-5.pdf",
+    "keywords": ["body_alignment", "alignment", "sag", "pike", "plank", "core", "hips", "push_up"],
+    "content": "The Army push-up standard describes lowering and raising the body as one unit. This app uses the visible shoulder-hip-ankle line as a 2D coaching proxy; it does not assess spinal loading or diagnose technique-related injury.",
+    "recommendations": [
+      "Squeeze your glutes and brace your core to keep hips in a straight line with shoulders and heels.",
+      "Keep your torso moving as one unit through the repetition.",
+      "Use the side view so the shoulder, hip, and ankle landmarks remain visible."
+    ]
+  },
+  {
+    "id": "pushup_recovery_tempo",
+    "title": "Push-Up Volume, Pacing, and Recovery",
+    "topic": "recovery",
+    "exercise": "push_up",
+    "citation": "NSCA Technique Essentials",
+    "source_url": "https://www.nsca.com/contentassets/4ad61fa3dc5b43c0be6a99b5440fb7db/coach3.1-the_recovery_process.pdf",
+    "keywords": ["recovery", "volume", "fatigue", "tempo", "push_up", "pacing"],
+    "content": "Recovery needs vary by person and training session. Keep repetitions controlled, and pause the set when you cannot maintain the intended movement pattern. This guidance does not prescribe a universal recovery interval.",
+    "recommendations": [
+      "Pause the set when the movement pattern changes noticeably.",
+      "Adjust training volume based on how you recover between sessions.",
+      "Use a controlled pace that lets you maintain the same range on each repetition."
+    ]
+  },
+  {
+    "id": "deadlift_lockout_hip_drive",
+    "title": "Conventional Deadlift Upright Lockout and Hip Extension",
+    "topic": "lockout",
+    "exercise": "deadlift",
+    "citation": "NASM Squats and Deadlifts Guide",
+    "source_url": "https://trainer.nasm.org/hubfs/NASM_Free%20Guide_Squats%20and%20Deadlifts.pdf?hsLang=en",
+    "keywords": ["lockout", "hip_lockout", "extension", "glutes", "standing", "deadlift", "erect"],
+    "content": "A conventional deadlift repetition moves from the floor to a standing finish. This app uses the side-view hip angle as a proxy for the standing finish; it cannot verify bar position, full knee extension, or spinal loading from that signal alone. Stand tall under control rather than leaning back at the finish.",
+    "recommendations": [
+      "Finish by standing tall under control.",
+      "Avoid leaning back at the top of the movement.",
+      "Return the bar to the floor under control before the next repetition."
+    ]
+  },
+  {
+    "id": "deadlift_movement_range",
+    "title": "Conventional Deadlift Starting Setup and Floor-to-Lockout Range",
+    "topic": "movement_range",
+    "exercise": "deadlift",
+    "citation": "NASM Exercise Library & PMC12148905",
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12148905/",
+    "keywords": ["movement_range", "rom", "setup", "floor", "hinge", "deadlift", "range"],
+    "content": "The conventional deadlift moves from a floor-level setup to standing and returns the load to the floor. The app tracks visible body landmarks and does not track bar path, so it can only estimate movement completion from the selected side-view angles.",
+    "recommendations": [
+      "Use a stable setup before lifting from the floor.",
+      "Lower the bar under control all the way back to the floor before starting the next rep.",
+      "Use block pulls or elevated deadlifts if mobility limits a safe floor setup."
+    ]
+  },
+  {
+    "id": "deadlift_recovery",
+    "title": "Deadlift Fatigue Management and Lumbar Recovery",
+    "topic": "recovery",
+    "exercise": "deadlift",
+    "citation": "NSCA Recovery Process",
+    "source_url": "https://www.nsca.com/contentassets/4ad61fa3dc5b43c0be6a99b5440fb7db/coach3.1-the_recovery_process.pdf",
+    "keywords": ["recovery", "volume", "fatigue", "posterior_chain", "deadlift", "rest"],
+    "content": "Recovery needs vary with the athlete and training session. Keep repetitions controlled, and pause the set when you cannot maintain the intended movement pattern. This guidance does not prescribe a universal recovery interval.",
+    "recommendations": [
+      "Pause the set when the movement pattern changes noticeably.",
+      "Adjust training volume based on how you recover between sessions.",
+      "Use a controlled pace that lets you maintain the intended range of motion."
+    ]
   }
 ]

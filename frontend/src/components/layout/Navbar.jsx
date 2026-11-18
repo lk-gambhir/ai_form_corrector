@@ -8,10 +8,18 @@ export default function Navbar({ activeTab, onSelectTab }) {
     <header className="app-header-nav" data-testid="app-header">
       <div className="nav-container">
         <div className="brand-group">
-          <h1>Squat Form Analyzer</h1>
+          <h1>FormGuard AI</h1>
         </div>
 
         <nav className="nav-tabs" role="tablist">
+          <button
+            type="button"
+            className={`nav-tab ${activeTab === "activities" || activeTab === "activity" ? "active" : ""}`}
+            onClick={() => onSelectTab("activities")}
+            data-testid="tab-activities"
+          >
+            <span>Activities</span>
+          </button>
           <button
             type="button"
             className={`nav-tab ${activeTab === "dashboard" ? "active" : ""}`}

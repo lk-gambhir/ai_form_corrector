@@ -31,7 +31,11 @@ SAFETY_DISCLAIMER = (
 )
 
 # Only these rule IDs are valid for primary_issue.
-KNOWN_RULE_IDS = {"depth", "torso_lean", "knee_valgus", "tempo"}
+KNOWN_RULE_IDS = {
+    "depth", "torso_lean", "knee_valgus", "tempo",
+    "range_of_motion", "body_alignment",
+    "lockout", "movement_range",
+}
 
 # Patterns that indicate unsafe medical claims an LLM should never make.
 _UNSAFE_PATTERNS = re.compile(
@@ -70,18 +74,20 @@ def _format_deterministic_coaching(
         primary_issue = sorted_issues[0].type
 
     # Build Summary
+    raw_ex = getattr(request, "exercise", "squat") or "squat"
+    exercise_name = "Push-up" if raw_ex == "push_up" else raw_ex.replace("_", " ").title()
     if not primary_issue or form_score >= 90:
         if rep_count > 0:
             summary = (
-                f"Your squat set of {rep_count} reps demonstrated strong technical consistency, "
+                f"Your {exercise_name} set of {rep_count} reps demonstrated strong technical consistency, "
                 f"achieving a {form_score}% form score."
             )
         else:
-            summary = "Session recorded with zero active repetitions."
+            summary = f"{exercise_name} session recorded with zero active repetitions."
     else:
         issue_label = primary_issue.replace("_", " ")
         summary = (
-            f"Your squat set completed {rep_count} reps with a {form_score}% form score, "
+        f"Your {exercise_name} set completed {rep_count} reps with a {form_score}% form score, "
             f"primarily affected by {issue_label}."
         )
 
@@ -133,13 +139,50 @@ def _format_deterministic_coaching(
         )
 
     elif primary_issue == "tempo":
+        phases = "lift-to-return" if request.exercise == "deadlift" else "lowering-to-return"
         explanation_parts.append(
-            f"Descent tempo was rushed{' (avg: ' + str(round(avg_tempo, 1)) + 's)' if avg_tempo else ''}, "
-            "sacrificing muscular control for passive bounce."
+            f"The {phases} tempo ratio was {round(avg_tempo, 1) if avg_tempo is not None else 'unavailable'}; "
+            "use a controlled tempo and pace that lets you maintain the intended movement pattern."
+        )
+    elif primary_issue == "range_of_motion":
+        issue_obj = next((i for i in issues if i.type == "range_of_motion"), None)
+        count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
+        explanation_parts.append(
+            f"Push-up depth was shallow {count_str}, reversing before upper arms reached parallel with the floor."
+        )
+        explanation_parts.append(
+            "Lowering with controlled elbow flexion (~90°) ensures full chest and triceps engagement."
+        )
+    elif primary_issue == "body_alignment":
+        issue_obj = next((i for i in issues if i.type == "body_alignment"), None)
+        count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
+        explanation_parts.append(
+            f"Body alignment deviated {count_str}, indicating sagging hips or arched back."
+        )
+        explanation_parts.append(
+            "Maintaining active core and glute tension keeps shoulders, hips, and ankles in one rigid line."
+        )
+    elif primary_issue == "lockout":
+        issue_obj = next((i for i in issues if i.type == "lockout"), None)
+        count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
+        explanation_parts.append(
+            f"Hip lockout was soft or incomplete {count_str} at the top of the deadlift."
+        )
+        explanation_parts.append(
+            "Standing tall with complete hip and knee extension maximizes glute contraction."
+        )
+    elif primary_issue == "movement_range":
+        issue_obj = next((i for i in issues if i.type == "movement_range"), None)
+        count_str = f"on {issue_obj.count} reps" if issue_obj else "during the set"
+        explanation_parts.append(
+            f"Deadlift movement range was truncated {count_str} between floor setup and lockout."
+        )
+        explanation_parts.append(
+            "Returning the bar fully to the starting floor position ensures complete repetition quality."
         )
     else:
         explanation_parts.append(
-            "Every repetition satisfied biomechanical rules with steady depth, stable knee tracking, and an upright torso."
+            f"Every repetition satisfied biomechanical rules with steady control and proper technique."
         )
 
     explanation = " ".join(explanation_parts)
@@ -153,24 +196,35 @@ def _format_deterministic_coaching(
 
     if len(recommendations) < 1:
         if primary_issue == "torso_lean":
-            recommendations = [
-                "Practice paused goblet squats with a lighter load to reinforce thoracic extension.",
-                "Cue 'driving traps into the bar' on the ascent to keep your chest elevated.",
-            ]
+            recommendations = ["Use a comfortable range and controlled tempo while keeping your torso steady."]
         elif primary_issue == "depth":
-            recommendations = [
-                "Incorporate box squats set to your parallel depth threshold to build positional awareness.",
-                "Perform banded ankle dorsiflexion rocks before loading the squat.",
-            ]
+            recommendations = ["Practice a controlled descent and use a repeatable depth that feels comfortable."]
         elif primary_issue == "knee_valgus":
+            recommendations = ["Keep your knees tracking consistently with your foot position through the repetition."]
+        elif primary_issue == "range_of_motion":
             recommendations = [
-                "Warm up with mini-band squats to prime glute medius hip external rotation.",
-                "Actively screw your feet into the floor to maintain strong knee tracking over toes.",
+                "Lower until your upper arms reach parallel with the floor (approx. 90° elbow bend).",
+                "Practice chest-to-pad or incline push-ups to build comfortable full range of motion.",
+            ]
+        elif primary_issue == "body_alignment":
+            recommendations = [
+                "Squeeze your glutes and brace your core to keep hips aligned with shoulders and heels.",
+                "Incorporate static forearm planks into warmups to reinforce anti-extension trunk rigidity.",
+            ]
+        elif primary_issue == "lockout":
+            recommendations = [
+                "Finish each repetition by squeezing the glutes to achieve full, upright hip extension.",
+                "Stand tall without leaning back or hyperextending the lower back at the top.",
+            ]
+        elif primary_issue == "movement_range":
+            recommendations = [
+                "Initiate each repetition from a stable setup with hips hinged back over midfoot.",
+                "Lower the bar under control all the way back to the floor before starting the next rep.",
             ]
         else:
             recommendations = [
                 "Maintain your current technical consistency while progressively adding volume.",
-                "Keep a steady 3-second controlled descent on all warmup and working sets.",
+                "Keep a steady controlled tempo on all warmup and working sets.",
             ]
 
     recommendations = recommendations[:3]
@@ -190,6 +244,14 @@ def _format_deterministic_coaching(
         next_session_goal = "Keep knees tracking directly in line with your second toe from bottom to top."
     elif primary_issue == "tempo":
         next_session_goal = "Control each descent to a full 3-second count before driving up explosively."
+    elif primary_issue == "range_of_motion":
+        next_session_goal = "Lower your chest until elbows reach a full 90° bend on every repetition."
+    elif primary_issue == "body_alignment":
+        next_session_goal = "Keep shoulders, hips, and ankles in one rigid straight line without sagging."
+    elif primary_issue == "lockout":
+        next_session_goal = "Achieve full upright hip extension and squeeze glutes at the top of each pull."
+    elif primary_issue == "movement_range":
+        next_session_goal = "Complete each rep by returning the bar fully to the floor setup position."
     else:
         next_session_goal = "Maintain today's technical precision while increasing set volume by 1 rep."
 
@@ -223,7 +285,7 @@ def _call_gemini_llm(
     }
 
     try:
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=httpx.Timeout(25.0, connect=10.0)) as client:
             resp = client.post(url, headers=headers, json=payload)
             if resp.status_code != 200:
                 logger.warning("Gemini API error %d: %s", resp.status_code, resp.text)
@@ -305,6 +367,9 @@ def analyze_session_coaching(
     if retriever is None:
         retriever = get_retriever()
 
+    if request.personalized_baseline and request.personalized_baseline.exercise not in (None, request.exercise):
+        request.personalized_baseline = None
+
     # Step 1: Retrieve approved guidance passages
     issue_dicts = [i.model_dump() for i in request.issues]
     metrics_dict = request.metrics.model_dump()
@@ -322,6 +387,7 @@ def analyze_session_coaching(
             title=p.title,
             relevance_score=p.relevance_score,
             passage=p.passage,
+            source_url=p.source_url,
         )
         for p in passages
     ]
@@ -355,7 +421,7 @@ SESSION SUMMARY DATA:
 - Issues Detected: {issue_dicts}
 - Metrics: {metrics_dict}
 - Personalized Baseline: {baseline_data}
-- Goal: {request.user_goal or "General squat mastery"}
+- Goal: {request.user_goal or f"Improve {request.exercise.replace('_', ' ')} technique"}
 
 Return a JSON object conforming precisely to:
 {{

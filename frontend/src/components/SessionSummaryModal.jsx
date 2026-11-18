@@ -25,8 +25,10 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
       try {
         let baseline = null;
         try {
-          const res = await getBaseline();
-          if (res && res.limb_ratios) baseline = res;
+          const res = await getBaseline(summary.exercise);
+          if (res && res.exercise === summary.exercise) {
+            baseline = res;
+          }
         } catch (_) {}
 
         const payload = formatCoachingPayload(summary, baseline);
@@ -53,7 +55,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
   }, [summary]);
 
   if (!summary) return null;
-  const score = Math.round(summary.formScore || 0);
+  const score = summary.repCount > 0 ? Math.round(summary.formScore ?? 0) : null;
 
   async function handleSave() {
     setSaving(true);
@@ -77,7 +79,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
         <div className="modal-header">
           <div className="modal-title-wrap">
             <span className="modal-eyebrow">Workout Complete</span>
-            <h2>Squat Set Summary</h2>
+            <h2>{summary.exercise?.replace("_", " ")} Set Summary</h2>
           </div>
           <button className="btn-close" onClick={onClose} data-testid="btn-close-summary" aria-label="Close">
             &times;
@@ -94,11 +96,11 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
                 cy="50"
                 r="42"
                 className="radial-fill"
-                style={{ strokeDashoffset: 264 - (264 * score) / 100 }}
+                style={{ strokeDashoffset: 264 - (264 * (score ?? 0)) / 100 }}
               />
             </svg>
             <div className="radial-content">
-              <span className="radial-number" data-testid="summary-score">{score}%</span>
+              <span className="radial-number" data-testid="summary-score">{score == null ? "—" : `${score}%`}</span>
               <span className="radial-label">FORM SCORE</span>
             </div>
           </div>
@@ -119,7 +121,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
           </div>
           <div className="summary-stat-box">
             <span className="stat-label">Rating</span>
-            <strong className="stat-value">{score >= 80 ? "Excellent" : score >= 60 ? "Good" : "Needs Work"}</strong>
+              <strong className="stat-value">{score == null ? "No reps" : score >= 80 ? "Excellent" : score >= 60 ? "Good" : "Needs Work"}</strong>
           </div>
         </div>
 
@@ -136,7 +138,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
           </div>
         ) : (
           <div className="feedback-clean-card">
-            <span>Flawless set! Depth and posture met every kinematic target.</span>
+            <span>All configured {summary.exercise?.replace("_", " ")} checks passed for this set.</span>
           </div>
         )}
 
@@ -235,7 +237,7 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
                             </span>
                           </div>
                           <p className="evidence-body">{item.passage}</p>
-                          <span className="evidence-source-id">Source: {item.source_id}</span>
+                          <span className="evidence-source-id">Source: {item.source_url ? <a href={item.source_url} target="_blank" rel="noreferrer">{item.title}</a> : item.source_id}</span>
                         </div>
                       ))}
                     </div>
@@ -267,10 +269,10 @@ export default function SessionSummaryModal({ summary, onClose, onSaved }) {
             type="button"
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || summary.repCount < 1}
             data-testid="btn-save-session"
           >
-            {saving ? "Saving..." : "Save to Cloud"}
+            {saving ? "Saving..." : summary.repCount < 1 ? "No reps to save" : "Save to Cloud"}
           </button>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Dismiss

@@ -56,7 +56,7 @@
 
 /**
  * @typedef {"low"|"medium"|"high"} Severity
- * @typedef {"depth"|"knee_valgus"|"torso_lean"|"tempo"} RuleId
+ * @typedef {"depth"|"knee_valgus"|"torso_lean"|"tempo"|"range_of_motion"|"body_alignment"|"lockout"|"movement_range"} RuleId
  */
 
 /**
@@ -94,8 +94,11 @@
 
 /**
  * @typedef {Object} ExerciseConfig
- * @property {"squat"|"deadlift"|"bench"} id
+ * @property {"squat"|"push_up"|"deadlift"} id
  * @property {string} displayName
+ * @property {string} description
+ * @property {string} setupGuidance
+ * @property {string} primaryMetricLabel
  * @property {boolean} enabled
  * @property {AngleDef[]} drivingAngles
  * @property {CompositeAngleDef[]} [compositeAngles]
@@ -107,6 +110,7 @@
  * @property {{minSec:number, maxSec:number}} tempoBounds
  * @property {Record<string, number>} scoreWeights
  * @property {number} [visibilityThreshold]
+ * @property {{signal:string, points:[string,string,string], invert?:boolean, direction?:"down"|"up", startThreshold:number, excursionThreshold:number, minAmplitudeDeg:number, minFrames:number}} [cycle]
  */
 
 /**

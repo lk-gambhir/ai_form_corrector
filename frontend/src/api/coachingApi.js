@@ -45,6 +45,8 @@ export function formatCoachingPayload(summary, baseline = null, userGoal = null)
     const stats = baseline.angleStats || baseline.angle_stats || {};
 
     personalizedBaseline = {
+      exercise: summary.exercise || "squat",
+      exercise_metrics: rom,
       knee_bottom_angle: rom.kneeBottom ?? rom.knee_bottom ?? null,
       knee_standing_angle: rom.kneeStanding ?? rom.knee_standing ?? null,
       typical_torso_lean: stats.typical_torso_lean ?? rom.typicalTorsoLean ?? null,

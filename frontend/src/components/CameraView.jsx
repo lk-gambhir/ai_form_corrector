@@ -1,21 +1,24 @@
 // Live squat camera view integrating MediaPipe pose estimation, HUD overlays, and session tracking.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PoseEstimator } from "@/pose/PoseEstimator.js";
 import { drawPose } from "@/pose/drawing.js";
 import { AnalysisPipeline } from "@/pipeline/AnalysisPipeline.js";
-import { squatConfig } from "@shared/exercise-config/squat.config.js";
+import { squatConfig } from "@shared/exercise-config/index.js";
 import { calculateFormScore } from "@/analysis/FormRuleEngine.js";
 import { MetricsEngine } from "@/analysis/MetricsEngine.js";
 import { getBaseline } from "@/api/calibrationApi.js";
+// TEMPORARY PERFORMANCE INSTRUMENTATION: remove this import and marked hooks after benchmarking.
+import { createTemporaryPerformanceMonitor } from "@/debug/temporaryPerformanceInstrumentation.js";
 import SessionSummaryModal from "./SessionSummaryModal.jsx";
 
-export default function CameraView() {
+export default function CameraView({ config = squatConfig, onWorkoutLockChange }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const estimatorRef = useRef(null);
   const rafRef = useRef(null);
-  const pipelineRef = useRef(new AnalysisPipeline(squatConfig));
+  const pipelineRef = useRef(null);
+  if (!pipelineRef.current) pipelineRef.current = new AnalysisPipeline(config);
 
   const [state, setState] = useState("requesting");
   const [analysis, setAnalysis] = useState({ repCount: 0, feedback: { activeCue: null } });
@@ -25,14 +28,29 @@ export default function CameraView() {
   const [collectedIssues, setCollectedIssues] = useState([]);
   const [baseline, setBaseline] = useState(null);
   const metricsEngine = useRef(new MetricsEngine());
+  // TEMPORARY PERFORMANCE INSTRUMENTATION: timing-only session monitor.
+  const performanceMonitorRef = useRef(null);
+  if (!performanceMonitorRef.current) {
+    performanceMonitorRef.current = createTemporaryPerformanceMonitor();
+  }
+
+  // TEMPORARY PERFORMANCE INSTRUMENTATION: useLayoutEffect runs after React commits
+  // the analysis state update, providing the UI-render endpoint for end-to-end latency.
+  useLayoutEffect(() => {
+    performanceMonitorRef.current.recordUiRender(performance.now());
+  }, [analysis]);
 
   // Starts recording a squat set.
   function handleStartSet() {
     pipelineRef.current.reset();
+    // TEMPORARY PERFORMANCE INSTRUMENTATION: benchmark starts with the workout,
+    // not when the camera page first loads.
+    performanceMonitorRef.current.startSession();
     setAnalysis({ repCount: 0, feedback: { activeCue: null } });
     setCollectedIssues([]);
     setWorkoutStartTime(Date.now());
     setIsWorkoutActive(true);
+    onWorkoutLockChange?.(true);
   }
 
   // Completes set and generates structured session summary.
@@ -65,10 +83,10 @@ export default function CameraView() {
     }
 
     // Compute standard form score aligned with backend app.services.form_score.
-    const formScore = calculateFormScore(reps, allIssues, squatConfig.scoreWeights);
+    const formScore = calculateFormScore(reps, allIssues, config.scoreWeights);
 
     const summary = {
-      exercise: "squat",
+      exercise: config.id,
       startedAt: new Date(workoutStartTime || endedAt).toISOString(),
       endedAt: new Date(endedAt).toISOString(),
       durationSeconds,
@@ -77,6 +95,9 @@ export default function CameraView() {
       reps: reps.map((r) => metricsEngine.current.compute(r)),
       formIssues: allIssues,
     };
+
+    // TEMPORARY PERFORMANCE INSTRUMENTATION: print the benchmark table at set end.
+    performanceMonitorRef.current.finish();
 
     setSessionSummary(summary);
   }
@@ -87,9 +108,9 @@ export default function CameraView() {
     // Initializes webcam stream, pose estimator model, and calibrated baseline ROM.
     async function start() {
       // Load user baseline ROM if already calibrated
-      getBaseline()
+      getBaseline(config.id)
         .then((b) => {
-          if (!cancelled && b) {
+          if (!cancelled && b?.exercise === config.id) {
             pipelineRef.current.setBaseline(b);
             setBaseline(b);
           }
@@ -161,18 +182,36 @@ export default function CameraView() {
         if (cancelled) return;
 
         if (video.videoWidth > 0 && video.videoHeight > 0) {
+          // TEMPORARY PERFORMANCE INSTRUMENTATION: frame-capture timestamp.
+          const captureTimestamp = performance.now();
+          if (!performanceMonitorRef.current.startFrame(captureTimestamp)) {
+            performanceMonitorRef.current.finish();
+            return;
+          }
+
           if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
           }
 
-          const landmarks = estimator.detectForVideo(video, performance.now());
+          // TEMPORARY PERFORMANCE INSTRUMENTATION: equivalent to timing MediaPipe's
+          // synchronous pose callback; detectForVideo returns after landmark detection.
+          const detectionStarted = performance.now();
+          const landmarks = estimator.detectForVideo(video, captureTimestamp);
+          const detectionDone = performance.now();
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           drawPose(ctx, landmarks, canvas.width, canvas.height);
 
           // Process frame through analysis pipeline.
-          const result = pipeline.processFrame(landmarks, performance.now());
-          setAnalysis({ repCount: result.repCount, feedback: result.feedback });
+          const result = pipeline.processFrame(landmarks, detectionDone);
+          // TEMPORARY PERFORMANCE INSTRUMENTATION: rep-count/angle calculation done.
+          performanceMonitorRef.current.recordPoseFrame({
+            captureTimestamp,
+            detectionStarted,
+            detectionDone,
+            repCountDone: result.repCount,
+          });
+          setAnalysis({ repCount: result.repCount, feedback: result.feedback, metrics: result.metrics });
 
           // Track form issues during active set.
           if (result.newIssues?.length) {
@@ -208,7 +247,7 @@ export default function CameraView() {
         streamRef.current = null;
       }
     };
-  }, []);
+  }, [config]);
 
   return (
     <div className="camera-view" data-testid="camera-view">
@@ -229,13 +268,20 @@ export default function CameraView() {
           </div>
 
           <div className="status-pill" data-testid="baseline-status-pill">
-            <span>{baseline?.rom?.kneeBottom ? `Baseline: Depth < ${Math.min(90, Math.round(baseline.rom.kneeBottom + 5))}°` : "Baseline: Standard (90°)"}</span>
+            <span>{config.id === "squat"
+              ? (baseline?.rom?.kneeBottom ? `Baseline: Depth < ${Math.min(90, Math.round(baseline.rom.kneeBottom + 5))}°` : "Baseline: Standard (90°)")
+              : "Activity-specific analysis"}</span>
           </div>
 
           {state === "running" && (
             <div className="rep-counter-pill" data-testid="knee-angle-readout">
               <span className="rep-count-number">{analysis.repCount}</span>
               <span className="rep-count-label">REPS</span>
+            </div>
+          )}
+          {analysis.metrics && (
+            <div className="status-pill activity-metric-pill" data-testid="activity-live-metric">
+              Last rep · {config.primaryMetricLabel} ROM {Math.round(analysis.metrics.romValue)}° · {analysis.metrics.durationSeconds.toFixed(1)}s
             </div>
           )}
         </div>
@@ -273,7 +319,10 @@ export default function CameraView() {
       {sessionSummary && (
         <SessionSummaryModal
           summary={sessionSummary}
-          onClose={() => setSessionSummary(null)}
+          onClose={() => {
+            setSessionSummary(null);
+            onWorkoutLockChange?.(false);
+          }}
         />
       )}
     </div>

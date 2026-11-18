@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
 from app.database import get_db
-from app.models import User, UserBaseline
+from app.models import User
 from app.schemas import CoachingAnalyzeRequest, CoachingAnalyzeResponse, CoachingBaselineIn
 from app.security import decode_access_token, oauth2_scheme
 from app.rate_limit import enforce_coaching_rate_limit
 from app.services.coaching import analyze_session_coaching
+from app.routers.calibration import get_user_exercise_profile
 
 router = APIRouter(prefix="/api/coaching", tags=["coaching"])
 
@@ -39,14 +40,14 @@ def analyze_workout(
     """
     # If athlete is logged in and baseline not provided in payload, inject from DB
     if current_user and not payload.personalized_baseline:
-        baseline_record = (
-            db.query(UserBaseline).filter(UserBaseline.user_id == current_user.id).first()
-        )
-        if baseline_record:
-            lr = baseline_record.limb_ratios or {}
-            rom = baseline_record.rom or {}
-            stats = baseline_record.angle_stats or {}
+        profile = get_user_exercise_profile(db, current_user.id, payload.exercise)
+        if profile:
+            lr = profile.get("limb_ratios", {})
+            rom = profile.get("rom", {})
+            stats = profile.get("angle_stats", {})
             payload.personalized_baseline = CoachingBaselineIn(
+                exercise=payload.exercise,
+                exercise_metrics=rom,
                 femur_to_torso=lr.get("femurToTorso") or lr.get("femur_to_torso"),
                 shin_to_torso=lr.get("shinToTorso") or lr.get("shin_to_torso"),
                 knee_bottom_angle=rom.get("kneeBottom") or rom.get("knee_bottom"),

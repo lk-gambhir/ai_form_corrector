@@ -1,9 +1,10 @@
 // Evaluates completed reps against configured form rules.
-import { squatConfig } from "@shared/exercise-config/squat.config.js";
+import { squatConfig } from "@shared/exercise-config/index.js";
 
 export class FormRuleEngine {
   constructor(config = squatConfig) {
     this.config = config;
+    this.activityBaseline = null;
     this.baselineRom = null;
     this.baselineLimbRatios = null;
     this.baselineTorsoLean = null;
@@ -11,6 +12,11 @@ export class FormRuleEngine {
 
   // Updates personalized baselines for dynamic rule thresholds.
   setBaseline(baseline) {
+    if (baseline?.exercise && baseline.exercise !== this.config.id) baseline = null;
+    this.activityBaseline = baseline;
+    this.baselineRom = null;
+    this.baselineLimbRatios = null;
+    this.baselineTorsoLean = null;
     if (baseline?.rom) {
       this.baselineRom = baseline.rom;
       this.baselineTorsoLean = baseline.rom.typicalTorsoLean ?? null;
@@ -27,6 +33,32 @@ export class FormRuleEngine {
   evaluate(rep) {
     const results = [];
     const rules = this.config.rules || {};
+
+    const configuredRules = Object.entries(rules).filter(([, rule]) => rule?.metric && rule?.op);
+    if (configuredRules.length) {
+      for (const [ruleId, rule] of configuredRules) {
+        const measured = rule.metric === "romValue"
+          ? (rep.romValue ?? Math.abs((rep.peakAngleDeg ?? 0) - (rep.minAngleDeg ?? 0)))
+          : rep.angleMetrics?.[rule.metric] ?? rep[rule.metric];
+        let threshold = rule.threshold;
+        if (this.config.id === "deadlift" && ruleId === "lockout" && Number.isFinite(this.activityBaseline?.rom?.hipLockout)) {
+          threshold = Math.max(150, Math.min(rule.threshold, this.activityBaseline.rom.hipLockout - 5));
+        } else if (this.config.id === "push_up" && ruleId === "body_alignment" && Number.isFinite(this.activityBaseline?.rom?.bodyLineDeg)) {
+          const calibratedDeviation = Math.abs(180 - this.activityBaseline.rom.bodyLineDeg);
+          threshold = Math.max(rule.threshold - 5, Math.min(rule.threshold, calibratedDeviation + 5));
+        }
+        const pass = Number.isFinite(measured) && (
+          rule.op === ">=" ? measured >= threshold
+            : rule.op === "<=" ? measured <= threshold
+              : rule.op === ">" ? measured > threshold
+                : rule.op === "<" ? measured < threshold
+                  : false
+        );
+        results.push({ ruleId, pass, severity: rule.severity || "medium", priority: rule.priority || 0,
+          measured: Number.isFinite(measured) ? measured : null, threshold, cue: pass ? "" : rule.cue });
+      }
+      return results;
+    }
 
     if (rules.depth?.enabled) {
       const depthRule = rules.depth;

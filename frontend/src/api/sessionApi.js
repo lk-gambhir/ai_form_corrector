@@ -33,8 +33,9 @@ export async function saveSession(summary) {
   });
 }
 
-export async function getSessions({ limit = 50, offset = 0 } = {}) {
+export async function getSessions({ limit = 50, offset = 0, exercise } = {}) {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (exercise) params.set("exercise", exercise);
   return apiRequest(`/sessions?${params}`);
 }
 

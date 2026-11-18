@@ -35,10 +35,10 @@ Decisions made where types.js was ambiguous for the wire/DB shape:
     loose (Record<string, ...>) and the frontend may add keys; we pass them
     through opaquely and store as JSON. This avoids a schema migration if the
     frontend adds a ratio/stat key later.
-  - `RuleId`/`Severity` are validated as open `str` (not a strict enum) on the
-    wire — the frontend owns the authoritative rule catalog in
-    `squat.config.js`; the backend must not become a blocker if it adds a
-    rule id. Values are stored as-is.
+  - `RuleId`/`Severity` are validated as open `str` values at the Pydantic
+    field boundary. Session validation then checks each issue ID against the
+    selected exercise's server-side catalog in `exercises/<id>/backend/`.
+    This keeps the wire shape extensible while rejecting cross-exercise rules.
 """
 from datetime import datetime
 
@@ -84,9 +84,11 @@ class GoogleAuthRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 class RepMetricsIn(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     rep_number: int
     duration_seconds: float = Field(ge=0)
-    rom_value: float
+    rom_value: float = Field(ge=0, le=180)
     tempo: float = Field(ge=0)
     angle_metrics: dict[str, float] = Field(default_factory=dict)
 
@@ -114,11 +116,11 @@ class IssueRecordOut(IssueRecordIn):
 
 
 class SessionCreateRequest(BaseModel):
-    exercise: Literal["squat"]
+    exercise: Literal["squat", "push_up", "deadlift"]
     started_at: datetime
     ended_at: datetime
     duration_seconds: float = Field(ge=0)
-    rep_count: int = Field(ge=0)
+    rep_count: int = Field(ge=1)
     form_score: float = Field(ge=0, le=100)
     reps: list[RepMetricsIn] = Field(default_factory=list)
     form_issues: list[IssueRecordIn] = Field(default_factory=list)
@@ -194,6 +196,7 @@ class DashboardTrendsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class BaselineIn(BaseModel):
+    exercise: Literal["squat", "push_up", "deadlift"] = "squat"
     limb_ratios: dict = Field(default_factory=dict)
     rom: dict = Field(default_factory=dict)
     angle_stats: dict = Field(default_factory=dict)
@@ -202,6 +205,7 @@ class BaselineIn(BaseModel):
 class BaselineOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    exercise: Literal["squat", "push_up", "deadlift"]
     limb_ratios: dict
     rom: dict
     angle_stats: dict
@@ -225,6 +229,8 @@ class CoachingMetricsIn(BaseModel):
 
 
 class CoachingBaselineIn(BaseModel):
+    exercise: str | None = None
+    exercise_metrics: dict = Field(default_factory=dict)
     knee_bottom_angle: float | None = None
     typical_torso_lean: float | None = None
     femur_to_torso: float | None = None
@@ -247,6 +253,7 @@ class RetrievedGuidanceItem(BaseModel):
     title: str
     relevance_score: float
     passage: str
+    source_url: str | None = None
 
 
 class CoachingAnalyzeResponse(BaseModel):

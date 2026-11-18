@@ -2,20 +2,24 @@
 import { useEffect, useState } from "react";
 import { getDashboardSummary } from "@/api/dashboardApi.js";
 import { getSessions } from "@/api/sessionApi.js";
+import { listSupportedExercises } from "@shared/exercise-config/index.js";
+import { getExerciseConfig } from "@shared/exercise-config/index.js";
 
 export default function HistoryView({ onNavigate }) {
   const [summary, setSummary] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedExercise, setSelectedExercise] = useState("all");
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
 
     async function loadData() {
       try {
         const [sumRes, sessRes] = await Promise.allSettled([
-          getDashboardSummary(),
-          getSessions({ limit: 20 }),
+          getDashboardSummary(selectedExercise === "all" ? undefined : selectedExercise),
+          getSessions({ limit: 20, exercise: selectedExercise === "all" ? undefined : selectedExercise }),
         ]);
         if (!mounted) return;
         if (sumRes.status === "fulfilled") setSummary(sumRes.value);
@@ -30,7 +34,7 @@ export default function HistoryView({ onNavigate }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [selectedExercise]);
 
   return (
     <div className="history-container" data-testid="history-view">
@@ -41,10 +45,16 @@ export default function HistoryView({ onNavigate }) {
             <span>Training Logbook & Biomechanical Analytics</span>
           </h2>
           <p className="subtitle" style={{ fontSize: "0.9rem", marginTop: "0.25rem" }}>
-            Historical workout sessions, recurring form flaw analysis, and form score trends
+            Review sessions and progress for one activity at a time.
           </p>
         </div>
-        <span className="section-tag">Performance Archive</span>
+        <label className="history-activity-filter">
+          <span>Activity</span>
+          <select value={selectedExercise} onChange={(event) => setSelectedExercise(event.target.value)}>
+            <option value="all">All activities</option>
+            {listSupportedExercises().map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.displayName}</option>)}
+          </select>
+        </label>
       </div>
 
       {/* High-Impact Metric Cards */}
@@ -70,9 +80,10 @@ export default function HistoryView({ onNavigate }) {
           <span className="card-value">
             {summary?.total_reps ?? 0}
           </span>
-          <span className="stat-meta">Deep squat reps</span>
+          <span className="stat-meta">{selectedExercise === "all" ? "Across activities" : `${listSupportedExercises().find((item) => item.id === selectedExercise)?.displayName} reps`}</span>
         </div>
 
+        {selectedExercise !== "all" && <>
         <div className="stat-card accent-card">
           <div className="stat-card-top">
             <span className="card-label">Average Score</span>
@@ -100,11 +111,12 @@ export default function HistoryView({ onNavigate }) {
             {summary?.best_form_score != null ? "Personal best set" : "No sessions yet"}
           </span>
         </div>
+        </>}
       </div>
 
       {/* Detailed Analysis & Logs */}
       <div className="dashboard-sections">
-        {summary?.most_common_issues?.length > 0 && (
+        {selectedExercise === "squat" && summary?.most_common_issues?.length > 0 && (
           <div className="section-card ai-focus-card" data-testid="ai-dashboard-focus" style={{ gridColumn: "1 / -1", background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.5rem", marginBottom: "1.5rem" }}>
             <div className="section-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -121,7 +133,7 @@ export default function HistoryView({ onNavigate }) {
           </div>
         )}
 
-        <div className="section-card" style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.5rem", marginBottom: "1.5rem" }}>
+        {selectedExercise !== "all" && <div className="section-card" style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.5rem", marginBottom: "1.5rem" }}>
           <div className="section-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "0.65rem" }}>
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", color: "#fff" }}>Technique Flaws Breakdown</h3>
             <span className="section-tag">Priority Cues</span>
@@ -152,7 +164,7 @@ export default function HistoryView({ onNavigate }) {
               <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Clean technique! No recurring form deviations recorded.</p>
             </div>
           )}
-        </div>
+        </div>}
 
         <div className="section-card" style={{ background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "var(--radius-md)", padding: "1.5rem" }}>
           <div className="section-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "0.65rem" }}>
@@ -165,7 +177,7 @@ export default function HistoryView({ onNavigate }) {
                 <div key={s.id} className="session-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.85rem 1rem", background: "#0d0d0d", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
                   <div className="session-info">
                     <span className="session-exercise" style={{ display: "block", color: "#fff", fontWeight: 700, fontFamily: "var(--font-condensed)", fontSize: "0.95rem" }}>
-                      {s.exercise.toUpperCase()} SET
+                      {(getExerciseConfig(s.exercise)?.displayName || s.exercise).toUpperCase()} SET
                     </span>
                     <span className="session-date" style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
                       {new Date(s.started_at).toLocaleDateString(undefined, {

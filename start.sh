@@ -12,7 +12,7 @@ trap 'echo -e "\n🛑 Shutting down servers..."; kill $(jobs -p) 2>/dev/null' EX
 
 # 1. Start FastAPI backend (port 8000)
 echo "▶ Starting backend server at http://127.0.0.1:8000"
-(cd backend && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload) &
+(cd backend && PYTHONPATH=.. .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload) &
 
 # 2. Start Vite React frontend (port 5173)
 echo "▶ Starting frontend website at http://localhost:5173"
